@@ -134,11 +134,10 @@
         <section id="process" class="py-16 md:py-24">
              <div class="container mx-auto px-6">
                 <h2 class="font-playfair text-4xl md:text-5xl font-bold text-brand text-center reveal-on-scroll">Proses Belanja Online yang Efisien</h2>
-                <div class="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <div class="flex items-start space-x-4 reveal-on-scroll"><div class="bg-brand text-white rounded-full w-12 h-12 flex-shrink-0 flex items-center justify-center text-xl font-bold">1</div><div><h3 class="font-semibold text-lg">Pilih Produk & Tambah ke Keranjang</h3><p class="text-gray-600 mt-1">Jelajahi koleksi kami dan pilih produk favorit Anda.</p></div></div>
-                    <div class="flex items-start space-x-4 reveal-on-scroll" style="transition-delay: 150ms;"><div class="bg-brand text-white rounded-full w-12 h-12 flex-shrink-0 flex items-center justify-center text-xl font-bold">2</div><div><h3 class="font-semibold text-lg">Isi Alamat & Pilih Kurir</h3><p class="text-gray-600 mt-1">Lengkapi alamat dan pilih kurir untuk melihat ongkos kirim.</p></div></div>
-                    <div class="flex items-start space-x-4 reveal-on-scroll" style="transition-delay: 300ms;"><div class="bg-brand text-white rounded-full w-12 h-12 flex-shrink-0 flex items-center justify-center text-xl font-bold">3</div><div><h3 class="font-semibold text-lg">Periksa Total & Kirim via WhatsApp</h3><p class="text-gray-600 mt-1">Pesanan lengkap dengan ongkir akan otomatis terkirim ke WA kami.</p></div></div>
-                    <div class="flex items-start space-x-4 reveal-on-scroll" style="transition-delay: 450ms;"><div class="bg-brand text-white rounded-full w-12 h-12 flex-shrink-0 flex items-center justify-center text-xl font-bold">4</div><div><h3 class="font-semibold text-lg">Konfirmasi & Pembayaran</h3><p class="text-gray-600 mt-1">Admin akan konfirmasi dan Anda bisa melakukan pembayaran.</p></div></div>
+                    <div class="flex items-start space-x-4 reveal-on-scroll" style="transition-delay: 150ms;"><div class="bg-brand text-white rounded-full w-12 h-12 flex-shrink-0 flex items-center justify-center text-xl font-bold">2</div><div><h3 class="font-semibold text-lg">Isi Formulir Pemesanan</h3><p class="text-gray-600 mt-1">Lengkapi data diri dan alamat pengiriman Anda di form checkout.</p></div></div>
+                    <div class="flex items-start space-x-4 reveal-on-scroll" style="transition-delay: 300ms;"><div class="bg-brand text-white rounded-full w-12 h-12 flex-shrink-0 flex items-center justify-center text-xl font-bold">3</div><div><h3 class="font-semibold text-lg">Kirim Pesanan via WhatsApp</h3><p class="text-gray-600 mt-1">Total pesanan beserta ongkos kirim akan diinformasikan oleh Admin.</p></div></div>
                 </div>
             </div>
         </section>
@@ -191,12 +190,22 @@
             </div>
             <div id="cart-footer" class="p-6 border-t bg-gray-50 rounded-b-lg">
                  <div class="flex mb-4">
-                    <input type="text" placeholder="Masukkan Kode Promo" class="flex-grow px-3 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-1 focus:ring-brand">
-                    <button type="button" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-r-lg hover:bg-gray-400">Gunakan</button>
+                    <input type="text" id="promo-code-input" placeholder="Masukkan Kode Promo" class="flex-grow px-3 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-1 focus:ring-brand">
+                    <button type="button" id="apply-promo-btn" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-r-lg hover:bg-gray-400">Gunakan</button>
                 </div>
-                <div class="flex justify-between items-center text-lg mb-4">
+                <div id="promo-feedback" class="text-sm mb-4"></div>
+                <div class="flex justify-between items-center text-lg">
                     <span class="text-gray-600">Subtotal</span>
                     <span id="cart-subtotal" class="font-semibold text-gray-800"></span>
+                </div>
+                <div id="discount-row" class="flex justify-between items-center text-sm hidden">
+                    <span class="text-green-600">Diskon</span>
+                    <span id="cart-discount" class="font-semibold text-green-600"></span>
+                </div>
+                <hr class="my-2">
+                <div class="flex justify-between items-center text-lg font-bold mb-4">
+                    <span>Total</span>
+                    <span id="cart-grandtotal"></span>
                 </div>
                 <button id="proceed-to-checkout-btn" type="button" class="w-full bg-brand text-white py-3 rounded-lg font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed">
                     Lanjut ke Checkout
@@ -223,27 +232,23 @@
             <h2 class="text-2xl font-bold text-brand p-6 border-b text-center">Formulir Pemesanan</h2>
             <div class="p-6 overflow-y-auto">
                 <form id="checkout-form">
-                    <!-- Form content remains the same -->
                     <div class="mb-4"><label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label><input type="text" id="name" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand"></div>
                     <div class="mb-4"><label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Nomor WhatsApp (Aktif)</label><input type="tel" id="phone" name="phone" required placeholder="Contoh: 081234567890" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand"></div>
                     <h3 class="text-lg font-semibold text-gray-800 mt-6 mb-2 border-t pt-4">Alamat Pengiriman</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div><label for="province" class="block text-sm font-medium text-gray-700 mb-1">Provinsi</label><select id="province" name="province" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand bg-white"></select></div>
-                        <div><label for="city" class="block text-sm font-medium text-gray-700 mb-1">Kota/Kabupaten</label><select id="city" name="city" required disabled class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand bg-gray-100"></select></div>
+                        <div><label for="province" class="block text-sm font-medium text-gray-700 mb-1">Provinsi</label><input type="text" id="province" name="province" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand bg-white" placeholder="e.g. Jawa Barat"></div>
+                        <div><label for="city" class="block text-sm font-medium text-gray-700 mb-1">Kota/Kabupaten</label><input type="text" id="city" name="city" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand bg-white" placeholder="e.g. Bandung"></div>
                     </div>
                      <div class="mb-4"><label for="address" class="block text-sm font-medium text-gray-700 mb-1">Alamat Lengkap (Jalan, No. Rumah, Kelurahan, dll)</label><textarea id="address" name="address" rows="3" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand"></textarea></div>
-                    <h3 class="text-lg font-semibold text-gray-800 mt-6 mb-2 border-t pt-4">Opsi Pengiriman</h3>
-                     <div class="mb-4"><label for="courier" class="block text-sm font-medium text-gray-700 mb-1">Pilih Kurir</label><select id="courier" name="courier" required disabled class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand bg-gray-100"><option value="">-- Pilih Kurir --</option><option value="jne">JNE</option><option value="pos">POS Indonesia</option><option value="tiki">TIKI</option></select></div>
-                    <div id="shipping-options-container" class="mb-4"><div id="shipping-loader" class="hidden items-center space-x-2 text-gray-500"><div class="loader"></div><span>Menghitung ongkir...</span></div></div>
                 </form>
             </div>
             <div class="p-6 border-t bg-gray-50 rounded-b-lg">
                 <div class="flex justify-between items-center mb-2"><span class="text-gray-600">Subtotal Produk</span><span id="summary-subtotal" class="font-semibold"></span></div>
-                <div class="flex justify-between items-center mb-4"><span class="text-gray-600">Ongkos Kirim</span><span id="summary-shipping" class="font-semibold"></span></div>
+                <div class="flex justify-between items-center mb-4"><span class="text-gray-600">Ongkos Kirim</span><span class="font-semibold text-sm text-gray-500">Akan diinfokan Admin</span></div>
                 <div class="flex justify-between items-center text-xl font-bold text-brand"><span >Total Pembayaran</span><span id="summary-grandtotal"></span></div>
                 <div class="flex justify-end space-x-4 mt-6">
                     <button type="button" id="cancel-checkout-btn" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Batal</button>
-                    <button type="submit" form="checkout-form" id="submit-order-btn" class="px-6 py-2 bg-brand text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Kirim Pesanan via WhatsApp</button>
+                    <button type="submit" form="checkout-form" id="submit-order-btn" class="px-6 py-2 bg-brand text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">Kirim Pesanan via WhatsApp</button>
                 </div>
             </div>
         </div>
@@ -256,16 +261,18 @@
         document.addEventListener('DOMContentLoaded', () => {
             // --- KONFIGURASI ---
             const WHATSAPP_NUMBER = '6281234567890';
-            // --- API KEY ANDA SUDAH TERPASANG ---
-            const KOMERCE_API_KEY = 'fHSFXqdK720d37f514d080f8phKP1yBg';
-            const ORIGIN_CITY_ID = '152'; // ID Kota Asal Pengiriman (152 = Jakarta Pusat).
-            const CORS_PROXY = 'https://corsproxy.io/?';
+            
+            // --- TEMPAT ANDA MEMBUAT KODE PROMO ---
+            const PROMO_CODES = {
+                "DISKON10RB": { type: 'fixed', value: 10000 },
+                "HEMAT15": { type: 'percent', value: 15 }
+                // Tambahkan kode lain di sini, contoh:
+                // "FREEONGKIR": { type: 'free_shipping', value: 0 }
+            };
             
             // --- STATE ---
             let cart = [];
-            let provinces = [];
-            let cities = [];
-            let selectedShipping = null;
+            let appliedPromo = null;
 
             // --- SELECTORS ---
             const cartButton = document.getElementById('cart-button'),
@@ -276,6 +283,12 @@
                   cartFooter = document.getElementById('cart-footer'),
                   emptyCartView = document.getElementById('empty-cart-view'),
                   cartSubtotal = document.getElementById('cart-subtotal'),
+                  cartGrandtotal = document.getElementById('cart-grandtotal'),
+                  discountRow = document.getElementById('discount-row'),
+                  cartDiscount = document.getElementById('cart-discount'),
+                  promoCodeInput = document.getElementById('promo-code-input'),
+                  applyPromoBtn = document.getElementById('apply-promo-btn'),
+                  promoFeedback = document.getElementById('promo-feedback'),
                   proceedToCheckoutBtn = document.getElementById('proceed-to-checkout-btn'),
                   continueShoppingBtn = document.getElementById('continue-shopping-btn'),
                   overlay = document.getElementById('overlay'),
@@ -283,13 +296,7 @@
                   cancelCheckoutBtn = document.getElementById('cancel-checkout-btn'),
                   checkoutForm = document.getElementById('checkout-form'),
                   addToCartButtons = document.querySelectorAll('.add-to-cart-btn'),
-                  provinceSelect = document.getElementById('province'),
-                  citySelect = document.getElementById('city'),
-                  courierSelect = document.getElementById('courier'),
-                  shippingOptionsContainer = document.getElementById('shipping-options-container'),
-                  shippingLoader = document.getElementById('shipping-loader'),
                   summarySubtotal = document.getElementById('summary-subtotal'),
-                  summaryShipping = document.getElementById('summary-shipping'),
                   summaryGrandtotal = document.getElementById('summary-grandtotal'),
                   submitOrderBtn = document.getElementById('submit-order-btn'),
                   navLinks = document.querySelectorAll('.nav-link'),
@@ -302,7 +309,24 @@
 
             const updateCartView = () => {
                 const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                let discountAmount = 0;
+
+                if (appliedPromo) {
+                    if (appliedPromo.type === 'fixed') {
+                        discountAmount = appliedPromo.value;
+                    } else if (appliedPromo.type === 'percent') {
+                        discountAmount = (subtotal * appliedPromo.value) / 100;
+                    }
+                    discountRow.classList.remove('hidden');
+                    cartDiscount.textContent = `- ${formatCurrency(discountAmount)}`;
+                } else {
+                    discountRow.classList.add('hidden');
+                }
+
+                const grandTotal = subtotal - discountAmount;
+
                 cartSubtotal.textContent = formatCurrency(subtotal);
+                cartGrandtotal.textContent = formatCurrency(grandTotal);
                 cartCount.textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
                 proceedToCheckoutBtn.disabled = cart.length === 0;
 
@@ -357,12 +381,11 @@
             };
             const openCheckoutModal = () => {
                 closeCartModal();
+                const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                summarySubtotal.textContent = formatCurrency(subtotal);
+                summaryGrandtotal.textContent = formatCurrency(subtotal); // Grandtotal awal sama dengan subtotal
                 checkoutModal.classList.remove('hidden');
                 showOverlay();
-                if (!provinces.length) {
-                    provinceSelect.innerHTML = '<option value="">Memuat provinsi...</option>';
-                    getProvinces();
-                }
             };
             const closeCheckoutModal = () => {
                 checkoutModal.classList.add('hidden');
@@ -399,105 +422,21 @@
                 }
                 updateCartView();
             };
+            
+            const handleApplyPromo = () => {
+                const code = promoCodeInput.value.toUpperCase();
+                const promo = PROMO_CODES[code];
 
-            // --- API FUNCTIONS ---
-            const fetchRajaOngkirApi = async (endpoint, options = {}) => {
-                const url = `${CORS_PROXY}${encodeURIComponent(`https://rajaongkir.komerce.id/api/v1/destination/province/${endpoint}`)}`;
-                const defaultHeaders = { 
-                    'key': KOMERCE_API_KEY,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                };
-                try {
-                    const response = await fetch(url, { ...options, headers: { ...defaultHeaders, ...options.headers } });
-                    if (!response.ok) throw new Error(`API request failed with status: ${response.status}`);
-                    const data = await response.json();
-                    return data;
-                } catch (error) {
-                    console.error("Error fetching RajaOngkir API:", error);
-                    alert(`Gagal mengambil data. Pastikan API Key Anda benar dan koneksi internet stabil. Error: ${error.message}`);
-                    return null;
-                }
-            };
-
-            const getProvinces = async () => {
-                const data = await fetchRajaOngkirApi('destination/province');
-                if (data && Array.isArray(data)) {
-                    provinces = data;
-                    provinceSelect.innerHTML = '<option value="">-- Pilih Provinsi --</option>';
-                    provinces.forEach(p => provinceSelect.innerHTML += `<option value="${p.province_id}">${p.province}</option>`);
+                if (promo) {
+                    appliedPromo = promo;
+                    promoFeedback.textContent = `Kode promo "${code}" berhasil diterapkan!`;
+                    promoFeedback.className = 'text-sm mb-4 text-green-600';
                 } else {
-                    provinceSelect.innerHTML = '<option value="">Gagal memuat provinsi</option>';
+                    appliedPromo = null;
+                    promoFeedback.textContent = 'Kode promo tidak valid.';
+                    promoFeedback.className = 'text-sm mb-4 text-red-600';
                 }
-            };
-
-            const getCities = async (provinceId) => {
-                citySelect.innerHTML = '<option value="">Memuat kota...</option>';
-                citySelect.disabled = true;
-                const data = await fetchRajaOngkirApi(`destination/city?province_id=${provinceId}`);
-                if (data && Array.isArray(data)) {
-                    cities = data;
-                    citySelect.innerHTML = '<option value="">-- Pilih Kota/Kabupaten --</option>';
-                    cities.forEach(c => citySelect.innerHTML += `<option value="${c.city_id}">${c.type} ${c.city_name}</option>`);
-                    citySelect.disabled = false;
-                    citySelect.classList.replace('bg-gray-100', 'bg-white');
-                }
-            };
-
-            const calculateCost = async () => {
-                const destination = citySelect.value;
-                const courier = courierSelect.value;
-                if (!destination || !courier) return;
-
-                const totalWeight = cart.reduce((sum, item) => sum + (item.weight * item.quantity), 0);
-                if (totalWeight === 0) return;
-
-                shippingLoader.style.display = 'flex';
-                shippingOptionsContainer.innerHTML = '';
-                shippingOptionsContainer.appendChild(shippingLoader);
-                selectedShipping = null;
-                updateCheckoutSummary();
-
-                const payload = {
-                    origin_id: ORIGIN_CITY_ID,
-                    destination_id: destination,
-                    weight: totalWeight,
-                    courier: courier
-                };
-                const data = await fetchRajaOngkirApi('shipping-cost/domestic', { 
-                    method: 'POST', 
-                    body: JSON.stringify(payload)
-                });
-                
-                shippingLoader.style.display = 'none';
-                if (data && data.data && data.data.costs && data.data.costs.length > 0) {
-                    const costs = data.data.costs;
-                    shippingOptionsContainer.innerHTML = '<p class="text-sm font-medium text-gray-700 mb-2">Pilih Jenis Layanan:</p>';
-                    costs.forEach(cost => {
-                        const costValue = cost.cost[0].value;
-                        const etd = cost.cost[0].etd.replace(/ HARI/i, '');
-                        const id = `shipping-${courier}-${cost.service}`;
-                        shippingOptionsContainer.innerHTML += `
-                            <label for="${id}" class="flex justify-between items-center p-3 border rounded-lg mb-2 cursor-pointer has-[:checked]:bg-pink-50 has-[:checked]:border-brand">
-                                <div><p class="font-semibold">${cost.service} (${cost.description})</p><p class="text-sm text-gray-500">Estimasi ${etd} hari</p></div>
-                                <div class="flex items-center"><span class="font-semibold mr-4">${formatCurrency(costValue)}</span><input type="radio" id="${id}" name="shipping-option" value="${costValue}" data-description="${courier.toUpperCase()} - ${cost.service}" class="h-4 w-4 text-brand focus:ring-brand border-gray-300"></div>
-                            </label>`;
-                    });
-                } else {
-                    shippingOptionsContainer.innerHTML = '<p class="text-red-500 text-sm">Layanan pengiriman tidak tersedia untuk tujuan ini.</p>';
-                }
-            };
-
-            const updateCheckoutSummary = () => {
-                const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                const shippingCost = selectedShipping ? selectedShipping.cost : 0;
-                const grandTotal = subtotal + shippingCost;
-
-                summarySubtotal.textContent = formatCurrency(subtotal);
-                summaryShipping.textContent = selectedShipping ? formatCurrency(shippingCost) : '-';
-                summaryGrandtotal.textContent = formatCurrency(grandTotal);
-                
-                submitOrderBtn.disabled = !(selectedShipping && checkoutForm.checkValidity());
+                updateCartView();
             };
 
             const handleCheckoutSubmit = (e) => {
@@ -505,21 +444,40 @@
                 const formData = new FormData(checkoutForm);
                 const name = formData.get('name');
                 const phone = formData.get('phone');
-                const provinceName = provinces.find(p => p.province_id === formData.get('province')).province;
-                const cityName = cities.find(c => c.city_id === formData.get('city')).city_name;
+                const province = formData.get('province');
+                const city = formData.get('city');
                 const address = formData.get('address');
                 
                 const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                const grandTotal = subtotal + selectedShipping.cost;
+                let discountAmount = 0;
+                let promoText = '';
+
+                if (appliedPromo) {
+                     if (appliedPromo.type === 'fixed') {
+                        discountAmount = appliedPromo.value;
+                    } else if (appliedPromo.type === 'percent') {
+                        discountAmount = (subtotal * appliedPromo.value) / 100;
+                    }
+                    promoText = `Diskon (${promoCodeInput.value.toUpperCase()}): -${formatCurrency(discountAmount)}\n`;
+                }
+                const grandTotal = subtotal - discountAmount;
 
                 let message = `Halo Berryly Belle, saya mau pesan:\n\n*PESANAN SAYA:*\n`;
                 cart.forEach(item => { message += `- ${item.name} (x${item.quantity})\n`; });
-                message += `\n*DATA PENGIRIMAN:*\nNama: ${name}\nNo. HP: ${phone}\nAlamat: ${address}, ${cityName}, ${provinceName}\n\n*DETAIL PEMBAYARAN:*\n`;
-                message += `Subtotal Produk: ${formatCurrency(subtotal)}\nPengiriman (${selectedShipping.description}): ${formatCurrency(selectedShipping.cost)}\n`;
-                message += `*TOTAL: ${formatCurrency(grandTotal)}*\n\nMohon konfirmasi ketersediaan barang dan totalnya. Terima kasih.`;
+                message += `\n*DATA PENGIRIMAN:*\nNama: ${name}\nNo. HP: ${phone}\nAlamat: ${address}, ${city}, ${province}\n\n`;
+                message += `*DETAIL PEMBAYARAN:*\nSubtotal: ${formatCurrency(subtotal)}\n`;
+                if (appliedPromo) {
+                    message += promoText;
+                }
+                message += `*Total Sementara: ${formatCurrency(grandTotal)}*\n\n`;
+                message += `Mohon diinformasikan total beserta ongkos kirimnya. Terima kasih.`;
                 
                 const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
                 window.open(whatsappUrl, '_blank');
+            };
+
+            const checkFormValidity = () => {
+                submitOrderBtn.disabled = !checkoutForm.checkValidity();
             };
 
             // --- EVENT LISTENERS ---
@@ -534,29 +492,9 @@
             continueShoppingBtn.addEventListener('click', closeCartModal);
             cancelCheckoutBtn.addEventListener('click', closeCheckoutModal);
             
-            provinceSelect.addEventListener('change', () => {
-                citySelect.disabled = true; courierSelect.disabled = true;
-                citySelect.classList.replace('bg-white', 'bg-gray-100'); courierSelect.classList.replace('bg-white', 'bg-gray-100');
-                shippingOptionsContainer.innerHTML = ''; selectedShipping = null; updateCheckoutSummary();
-                if (provinceSelect.value) getCities(provinceSelect.value);
-            });
-
-            citySelect.addEventListener('change', () => {
-                courierSelect.disabled = !citySelect.value;
-                if(citySelect.value) courierSelect.classList.replace('bg-gray-100', 'bg-white');
-                calculateCost();
-            });
-
-            courierSelect.addEventListener('change', calculateCost);
-
-            shippingOptionsContainer.addEventListener('change', (e) => {
-                if (e.target.name === 'shipping-option') {
-                    selectedShipping = { cost: parseInt(e.target.value), description: e.target.dataset.description };
-                    updateCheckoutSummary();
-                }
-            });
-
-            checkoutForm.addEventListener('input', updateCheckoutSummary);
+            applyPromoBtn.addEventListener('click', handleApplyPromo);
+            
+            checkoutForm.addEventListener('input', checkFormValidity);
             checkoutForm.addEventListener('submit', handleCheckoutSubmit);
 
             navLinks.forEach(anchor => {
