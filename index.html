@@ -28,7 +28,7 @@
         .reveal-on-scroll { opacity: 0; transform: translateY(30px); transition: opacity 0.8s ease-out, transform 0.8s ease-out; }
         .reveal-on-scroll.visible { opacity: 1; transform: translateY(0); }
 
-        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { translateY(0px); } }
         .butterfly { animation: float 3s ease-in-out infinite; }
         
         .cloud-bg { background-image: url('https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/background.webp'); background-repeat: no-repeat; background-position: center; background-size: cover; }
@@ -118,20 +118,23 @@
             <div class="container mx-auto px-6 text-center">
                 <h2 class="font-playfair text-4xl md:text-5xl font-bold text-brand reveal-on-scroll">Koleksi Pilihan Kami</h2>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12 mt-12">
+                    <!-- Produk 1 - Tidak ada perubahan -->
                     <div class="product-card reveal-on-scroll" data-id="1" data-name="Kerudung Premium Organza" data-price="45000" data-image="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/kerudung%20premium.webp" data-weight="150">
                         <div class="bg-white p-4 rounded-full shadow-lg w-64 h-64 mx-auto flex items-center justify-center"><img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/kerudung%20premium.webp" alt="Kerudung Premium Organza" class="w-full h-full object-cover rounded-full"></div>
                         <h3 class="font-semibold text-xl mt-6">Kerudung Premium Organza</h3>
                         <p class="text-brand font-medium">Rp 45.000</p>
                         <button type="button" class="add-to-cart-btn mt-4 bg-brand text-white px-6 py-2 rounded-full hover:opacity-90 transition">Tambah ke Keranjang</button>
                     </div>
+                    <!-- Produk 2 - DITAMBAHKAN object-right -->
                     <div class="product-card reveal-on-scroll" style="transition-delay: 200ms;" data-id="2" data-name="Kerudung Segi Empat Polly Cotton" data-price="55000" data-image="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/Kerudung%20segi%20empat.webp" data-weight="200">
-                        <div class="bg-white p-4 rounded-full shadow-lg w-64 h-64 mx-auto flex items-center justify-center"><img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/Kerudung%20segi%20empat.webp" alt="Kerudung Segi Empat Polly Cotton" class="w-full h-full object-cover rounded-full"></div>
+                        <div class="bg-white p-4 rounded-full shadow-lg w-64 h-64 mx-auto flex items-center justify-center"><img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/Kerudung%20segi%20empat.webp" alt="Kerudung Segi Empat Polly Cotton" class="w-full h-full object-cover rounded-full object-right"></div>
                         <h3 class="font-semibold text-xl mt-6">Kerudung Segi Empat Polly Cotton</h3>
                         <p class="text-brand font-medium">Rp 55.000</p>
                         <button type="button" class="add-to-cart-btn mt-4 bg-brand text-white px-6 py-2 rounded-full hover:opacity-90 transition">Tambah ke Keranjang</button>
                     </div>
+                    <!-- Produk 3 - DITAMBAHKAN object-right -->
                     <div class="product-card reveal-on-scroll" style="transition-delay: 400ms;" data-id="3" data-name="Kerudung Pashmina Ceruty" data-price="65000" data-image="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/Kerudung%20phasmina.webp" data-weight="250">
-                        <div class="bg-white p-4 rounded-full shadow-lg w-64 h-64 mx-auto flex items-center justify-center"><img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/Kerudung%20phasmina.webp" alt="Kerudung Pashmina Ceruty" class="w-full h-full object-cover rounded-full"></div>
+                        <div class="bg-white p-4 rounded-full shadow-lg w-64 h-64 mx-auto flex items-center justify-center"><img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/Kerudung%20phasmina.webp" alt="Kerudung Pashmina Ceruty" class="w-full h-full object-cover rounded-full object-right"></div>
                         <h3 class="font-semibold text-xl mt-6">Kerudung Pashmina Ceruty</h3>
                         <p class="text-brand font-medium">Rp 65.000</p>
                         <button type="button" class="add-to-cart-btn mt-4 bg-brand text-white px-6 py-2 rounded-full hover:opacity-90 transition">Tambah ke Keranjang</button>
