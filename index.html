@@ -31,7 +31,7 @@
         @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
         .butterfly { animation: float 3s ease-in-out infinite; }
         
-        .cloud-bg { background-image: url('https://www.transparenttextures.com/patterns/fog.png'); background-repeat: no-repeat; background-position: center; background-size: cover; }
+        .cloud-bg { background-image: url('https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/background.webp'); background-repeat: no-repeat; background-position: center; background-size: cover; }
         
         #cart-items::-webkit-scrollbar, #checkout-modal .overflow-y-auto::-webkit-scrollbar { width: 6px; }
         #cart-items::-webkit-scrollbar-track, #checkout-modal .overflow-y-auto::-webkit-scrollbar-track { background: #f1f1f1; }
@@ -47,8 +47,8 @@
     <!-- Header / Navbar -->
     <header class="bg-white/80 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
         <div class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <a href="#home" class="nav-link font-playfair text-2xl font-bold text-brand">
-                BRB <span class="font-poppins text-lg font-light">Berryly Belle</span>
+            <a href="#home" class="nav-link">
+                <img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/logoooo.webp" alt="Berryly Belle Logo" class="h-16">
             </a>
             <nav class="hidden md:flex items-center space-x-8">
                 <a href="#home" class="nav-link text-gray-600 hover:text-brand transition duration-300">Home</a>
@@ -75,18 +75,20 @@
     </header>
     <main>
         <!-- Sections: Home, Welcome, Products, Process, Contact -->
-        <section id="home" class="container mx-auto px-6 py-16 md:py-24 flex flex-col md:flex-row items-center cloud-bg overflow-hidden">
-             <div class="md:w-1/2 text-center md:text-left reveal-on-scroll">
-                <h1 class="font-playfair text-6xl md:text-8xl font-bold text-brand leading-tight">Hijab</h1>
-                <p class="font-playfair text-2xl text-brand mt-2">Berryly Belle</p>
-                <p class="text-gray-600 mt-4 max-w-md mx-auto md:mx-0">"Anggun dalam Kesederhanaan, Indah dalam Setiap Balutan."</p>
-                <a href="https://www.berrylybelle.com" target="_blank" class="text-brand mt-6 inline-block border-b border-brand hover:text-gray-600 transition">www.berrylybelle.com</a>
-            </div>
-            <div class="md:w-1/2 mt-12 md:mt-0 flex justify-center relative reveal-on-scroll" style="transition-delay: 200ms;">
-                <div class="relative w-80 h-[28rem]">
-                    <div class="absolute inset-0 bg-white shadow-xl rounded-t-[150px] rounded-b-lg border-2 border-pink-100"></div>
-                    <img src="https://placehold.co/400x600/d1a3b6/ffffff?text=Model+Hijab" alt="Model mengenakan hijab Berryly Belle" class="absolute inset-x-4 top-4 h-[95%] w-auto object-cover rounded-t-[130px] rounded-b-md">
-                    <svg class="w-12 h-12 text-brand absolute -top-4 -right-4 butterfly" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12.756 10.322c-.22.252-.403.53-.544.82l-2.13 4.383c-.14.29-.43.475-.744.475H8.1c-.518 0-.938-.42-.938-.938v-.003c0-.352.19-.668.483-.828l2.122-1.156a.938.938 0 0 0 .454-.805v-1.962a.938.938 0 0 0-.454-.805L7.646 8.344a.938.938 0 0 1-.484-.828V7.51c0-.518.42-.938.938-.938h1.238c.314 0 .605.186.744.475l2.13 4.383c.142.29.324.568.544.82zM20.25 7.51v-.003c0-.518-.42-.938-.938-.938h-1.238c-.314 0-.605.186-.744.475l-2.13 4.383c-.142.29-.324.568-.544.82.22.252.403.53.544.82l2.13 4.383c.14.29.43.475.744.475h1.238c.518 0 .938-.42.938-.938v-.003c0-.352-.19-.668-.483-.828l-2.122-1.156a.938.938 0 0 0-.454-.805v-1.962c0-.34.17-.65.454-.805l2.123-1.156c.292-.16.483-.476.483-.828z"/></svg>
+        <section id="home" class="w-full cloud-bg">
+            <div class="container mx-auto px-6 py-16 md:py-24 flex flex-col md:flex-row items-center overflow-hidden">
+                 <div class="md:w-1/2 text-center md:text-left reveal-on-scroll">
+                    <h1 class="font-playfair text-6xl md:text-8xl font-bold text-brand leading-tight">Hijab</h1>
+                    <p class="font-playfair text-2xl text-brand mt-2">Berryly Belle</p>
+                    <p class="text-gray-600 mt-4 max-w-md mx-auto md:mx-0">"Anggun dalam Kesederhanaan, Indah dalam Setiap Balutan."</p>
+                    <a href="https://www.berrylybelle.com" target="_blank" class="text-brand mt-6 inline-block border-b border-brand hover:text-gray-600 transition">www.berrylybelle.com</a>
+                </div>
+                <div class="md:w-1/2 mt-12 md:mt-0 flex justify-center relative reveal-on-scroll" style="transition-delay: 200ms;">
+                    <div class="relative w-80 h-[28rem]">
+                        <div class="absolute inset-0 bg-white shadow-xl rounded-t-[150px] rounded-b-lg border-2 border-pink-100"></div>
+                        <img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/model%20landing%20page.webp" alt="Model mengenakan hijab Berryly Belle" class="absolute inset-x-4 top-4 h-[95%] w-auto object-cover rounded-t-[130px] rounded-b-md">
+                        <img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/kupu.webp" alt="Kupu-kupu" class="w-16 h-auto absolute -top-4 -right-4 butterfly">
+                    </div>
                 </div>
             </div>
         </section>
@@ -102,7 +104,7 @@
             <div class="md:w-1/2 flex justify-center reveal-on-scroll" style="transition-delay: 200ms;">
                 <div class="relative w-80 h-[28rem]">
                     <div class="absolute inset-0 bg-white shadow-xl rounded-t-[150px] rounded-b-lg border-2 border-pink-100"></div>
-                    <img src="https://placehold.co/400x600/f3b8d3/ffffff?text=Model+Cantik" alt="Model mengenakan hijab pink" class="absolute inset-x-4 top-4 h-[95%] w-auto object-cover rounded-t-[130px] rounded-b-md">
+                    <img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/model%20landing%20page%202.webp" alt="Model mengenakan hijab pink" class="absolute inset-x-4 top-4 h-[95%] w-auto object-cover rounded-t-[130px] rounded-b-md">
                 </div>
             </div>
         </section>
@@ -110,20 +112,20 @@
             <div class="container mx-auto px-6 text-center">
                 <h2 class="font-playfair text-4xl md:text-5xl font-bold text-brand reveal-on-scroll">Koleksi Pilihan Kami</h2>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12 mt-12">
-                    <div class="product-card reveal-on-scroll" data-id="1" data-name="Kerudung Premium Organza" data-price="45000" data-image="https://placehold.co/100x100/e6b3c8/ffffff" data-weight="150">
-                        <div class="bg-white p-4 rounded-full shadow-lg w-64 h-64 mx-auto flex items-center justify-center"><img src="https://placehold.co/250x250/e6b3c8/ffffff?text=Organza" alt="Kerudung Premium Organza" class="w-full h-full object-cover rounded-full"></div>
+                    <div class="product-card reveal-on-scroll" data-id="1" data-name="Kerudung Premium Organza" data-price="45000" data-image="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/kerudung%20premium.webp" data-weight="150">
+                        <div class="bg-white p-4 rounded-full shadow-lg w-64 h-64 mx-auto flex items-center justify-center"><img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/kerudung%20premium.webp" alt="Kerudung Premium Organza" class="w-full h-full object-cover rounded-full"></div>
                         <h3 class="font-semibold text-xl mt-6">Kerudung Premium Organza</h3>
                         <p class="text-brand font-medium">Rp 45.000</p>
                         <button type="button" class="add-to-cart-btn mt-4 bg-brand text-white px-6 py-2 rounded-full hover:opacity-90 transition">Tambah ke Keranjang</button>
                     </div>
-                    <div class="product-card reveal-on-scroll" style="transition-delay: 200ms;" data-id="2" data-name="Kerudung Segi Empat Polly Cotton" data-price="55000" data-image="https://placehold.co/100x100/d8c1b4/ffffff" data-weight="200">
-                        <div class="bg-white p-4 rounded-full shadow-lg w-64 h-64 mx-auto flex items-center justify-center"><img src="https://placehold.co/250x250/d8c1b4/ffffff?text=Polly+Cotton" alt="Kerudung Segi Empat Polly Cotton" class="w-full h-full object-cover rounded-full"></div>
+                    <div class="product-card reveal-on-scroll" style="transition-delay: 200ms;" data-id="2" data-name="Kerudung Segi Empat Polly Cotton" data-price="55000" data-image="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/Kerudung%20segi%20empat.webp" data-weight="200">
+                        <div class="bg-white p-4 rounded-full shadow-lg w-64 h-64 mx-auto flex items-center justify-center"><img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/Kerudung%20segi%20empat.webp" alt="Kerudung Segi Empat Polly Cotton" class="w-full h-full object-cover rounded-full"></div>
                         <h3 class="font-semibold text-xl mt-6">Kerudung Segi Empat Polly Cotton</h3>
                         <p class="text-brand font-medium">Rp 55.000</p>
                         <button type="button" class="add-to-cart-btn mt-4 bg-brand text-white px-6 py-2 rounded-full hover:opacity-90 transition">Tambah ke Keranjang</button>
                     </div>
-                    <div class="product-card reveal-on-scroll" style="transition-delay: 400ms;" data-id="3" data-name="Kerudung Pashmina Ceruty" data-price="65000" data-image="https://placehold.co/100x100/f5c7c8/ffffff" data-weight="250">
-                        <div class="bg-white p-4 rounded-full shadow-lg w-64 h-64 mx-auto flex items-center justify-center"><img src="https://placehold.co/250x250/f5c7c8/ffffff?text=Pashmina" alt="Kerudung Pashmina Ceruty" class="w-full h-full object-cover rounded-full"></div>
+                    <div class="product-card reveal-on-scroll" style="transition-delay: 400ms;" data-id="3" data-name="Kerudung Pashmina Ceruty" data-price="65000" data-image="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/Kerudung%20phasmina.webp" data-weight="250">
+                        <div class="bg-white p-4 rounded-full shadow-lg w-64 h-64 mx-auto flex items-center justify-center"><img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/Kerudung%20phasmina.webp" alt="Kerudung Pashmina Ceruty" class="w-full h-full object-cover rounded-full"></div>
                         <h3 class="font-semibold text-xl mt-6">Kerudung Pashmina Ceruty</h3>
                         <p class="text-brand font-medium">Rp 65.000</p>
                         <button type="button" class="add-to-cart-btn mt-4 bg-brand text-white px-6 py-2 rounded-full hover:opacity-90 transition">Tambah ke Keranjang</button>
@@ -148,9 +150,9 @@
                 <div class="mt-16 grid grid-cols-1 md:grid-cols-2 gap-12">
                     <div class="reveal-on-scroll">
                         <div class="space-y-4 mb-8">
-                            <div class="flex items-center space-x-4"><i class="fa-solid fa-location-dot text-brand text-xl w-6 text-center"></i><span>Jl. Anggrek No. 123, Jakarta, Indonesia</span></div>
-                            <div class="flex items-center space-x-4"><i class="fa-solid fa-envelope text-brand text-xl w-6 text-center"></i><span>kontak@berrylybelle.com</span></div>
-                            <div class="flex items-center space-x-4"><i class="fa-solid fa-phone text-brand text-xl w-6 text-center"></i><span>(021) 123-4567</span></div>
+                            <div class="flex items-center space-x-4"><i class="fa-solid fa-location-dot text-brand text-xl w-6 text-center"></i><span>Sukamulya, Kota Bandung</span></div>
+                            <div class="flex items-center space-x-4"><i class="fa-solid fa-envelope text-brand text-xl w-6 text-center"></i><span>berrylybell@gmail.com</span></div>
+                            <div class="flex items-center space-x-4"><i class="fa-solid fa-phone text-brand text-xl w-6 text-center"></i><span>0819-1482-8763</span></div>
                         </div>
                         <form id="contact-form">
                             <div class="mb-4"><label for="contact-name" class="sr-only">Nama</label><input type="text" id="contact-name" placeholder="Nama Anda" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand"></div>
@@ -160,7 +162,7 @@
                         </form>
                     </div>
                     <div class="reveal-on-scroll" style="transition-delay: 200ms;">
-                        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.571189551421!2d106.824534!3d-6.188225000000001!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f4236a2b133b%3A0x1d86a5124b606a14!2sMonumen%20Nasional!5e0!3m2!1sid!2sid!4v1661846549045!5m2!1sid!2sid" width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" class="rounded-lg shadow-lg"></iframe>
+                        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3960.902330342921!2d107.5731175758641!3d-6.90223336754454!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e68e63982264e59%3A0x537365a6a3253723!2sBandung%2C%20Kota%20Bandung%2C%20Jawa%20Barat!5e0!3m2!1sid!2sid!4v1690882823123!5m2!1sid!2sid" width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" class="rounded-lg shadow-lg"></iframe>
                     </div>
                 </div>
             </div>
@@ -260,14 +262,12 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // --- KONFIGURASI ---
-            const WHATSAPP_NUMBER = '6281234567890';
+            const WHATSAPP_NUMBER = '6281914828763';
             
             // --- TEMPAT ANDA MEMBUAT KODE PROMO ---
             const PROMO_CODES = {
                 "DISKON10RB": { type: 'fixed', value: 10000 },
                 "HEMAT15": { type: 'percent', value: 15 }
-                // Tambahkan kode lain di sini, contoh:
-                // "FREEONGKIR": { type: 'free_shipping', value: 0 }
             };
             
             // --- STATE ---
@@ -472,7 +472,7 @@
                 message += `*Total Sementara: ${formatCurrency(grandTotal)}*\n\n`;
                 message += `Mohon diinformasikan total beserta ongkos kirimnya. Terima kasih.`;
                 
-                const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+                const whatsappUrl = `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`;
                 window.open(whatsappUrl, '_blank');
             };
 
