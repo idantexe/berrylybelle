@@ -40,6 +40,14 @@
 
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #9a2768; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #9a2768;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
     </style>
 </head>
 <body class="text-gray-800">
@@ -136,8 +144,8 @@
                 <h2 class="font-playfair text-4xl md:text-5xl font-bold text-brand text-center reveal-on-scroll">Proses Belanja Online yang Efisien</h2>
                 <div class="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <div class="flex items-start space-x-4 reveal-on-scroll"><div class="bg-brand text-white rounded-full w-12 h-12 flex-shrink-0 flex items-center justify-center text-xl font-bold">1</div><div><h3 class="font-semibold text-lg">Pilih Produk & Tambah ke Keranjang</h3><p class="text-gray-600 mt-1">Jelajahi koleksi kami dan pilih produk favorit Anda.</p></div></div>
-                    <div class="flex items-start space-x-4 reveal-on-scroll" style="transition-delay: 150ms;"><div class="bg-brand text-white rounded-full w-12 h-12 flex-shrink-0 flex items-center justify-center text-xl font-bold">2</div><div><h3 class="font-semibold text-lg">Isi Formulir Pemesanan</h3><p class="text-gray-600 mt-1">Lengkapi data diri dan alamat pengiriman Anda di form checkout.</p></div></div>
-                    <div class="flex items-start space-x-4 reveal-on-scroll" style="transition-delay: 300ms;"><div class="bg-brand text-white rounded-full w-12 h-12 flex-shrink-0 flex items-center justify-center text-xl font-bold">3</div><div><h3 class="font-semibold text-lg">Kirim Pesanan via WhatsApp</h3><p class="text-gray-600 mt-1">Total pesanan beserta ongkos kirim akan diinformasikan oleh Admin.</p></div></div>
+                    <div class="flex items-start space-x-4 reveal-on-scroll" style="transition-delay: 150ms;"><div class="bg-brand text-white rounded-full w-12 h-12 flex-shrink-0 flex items-center justify-center text-xl font-bold">2</div><div><h3 class="font-semibold text-lg">Isi Formulir & Cek Ongkir</h3><p class="text-gray-600 mt-1">Lengkapi data diri, alamat, dan pilih layanan pengiriman.</p></div></div>
+                    <div class="flex items-start space-x-4 reveal-on-scroll" style="transition-delay: 300ms;"><div class="bg-brand text-white rounded-full w-12 h-12 flex-shrink-0 flex items-center justify-center text-xl font-bold">3</div><div><h3 class="font-semibold text-lg">Kirim Pesanan via WhatsApp</h3><p class="text-gray-600 mt-1">Rincian pesanan lengkap dengan ongkir akan otomatis dibuat.</p></div></div>
                 </div>
             </div>
         </section>
@@ -178,7 +186,7 @@
         </div>
     </footer>
 
-    <!-- NEW CART MODAL -->
+    <!-- Cart Modal -->
     <div id="cart-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl m-4 max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center p-4 border-b">
@@ -232,19 +240,56 @@
             <h2 class="text-2xl font-bold text-brand p-6 border-b text-center">Formulir Pemesanan</h2>
             <div class="p-6 overflow-y-auto">
                 <form id="checkout-form">
+                    <!-- Personal Info -->
                     <div class="mb-4"><label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label><input type="text" id="name" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand"></div>
                     <div class="mb-4"><label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Nomor WhatsApp (Aktif)</label><input type="tel" id="phone" name="phone" required placeholder="Contoh: 081234567890" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand"></div>
+                    
+                    <!-- Shipping Address -->
                     <h3 class="text-lg font-semibold text-gray-800 mt-6 mb-2 border-t pt-4">Alamat Pengiriman</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div><label for="province" class="block text-sm font-medium text-gray-700 mb-1">Provinsi</label><input type="text" id="province" name="province" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand bg-white" placeholder="e.g. Jawa Barat"></div>
-                        <div><label for="city" class="block text-sm font-medium text-gray-700 mb-1">Kota/Kabupaten</label><input type="text" id="city" name="city" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand bg-white" placeholder="e.g. Bandung"></div>
+                        <div>
+                            <label for="province" class="block text-sm font-medium text-gray-700 mb-1">Provinsi</label>
+                            <select id="province" name="province" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand bg-white">
+                                <option value="">Pilih Provinsi...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="city" class="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                                Kota/Kabupaten <span id="city-loader" class="spinner ml-2 hidden"></span>
+                            </label>
+                            <select id="city" name="city" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand bg-gray-200" disabled>
+                                <option value="">Pilih Kota/Kabupaten...</option>
+                            </select>
+                        </div>
                     </div>
-                     <div class="mb-4"><label for="address" class="block text-sm font-medium text-gray-700 mb-1">Alamat Lengkap (Jalan, No. Rumah, Kelurahan, dll)</label><textarea id="address" name="address" rows="3" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand"></textarea></div>
+                    <div class="mb-4"><label for="address" class="block text-sm font-medium text-gray-700 mb-1">Alamat Lengkap (Jalan, No. Rumah, Kelurahan, dll)</label><textarea id="address" name="address" rows="3" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand"></textarea></div>
+
+                    <!-- Shipping Courier -->
+                    <h3 class="text-lg font-semibold text-gray-800 mt-6 mb-2 border-t pt-4">Opsi Pengiriman</h3>
+                    <div class="mb-4">
+                        <label for="courier" class="block text-sm font-medium text-gray-700 mb-1">Pilih Kurir</label>
+                        <select id="courier" name="courier" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand bg-white">
+                            <option value="">Pilih Kurir...</option>
+                            <option value="jne">JNE</option>
+                            <option value="pos">POS Indonesia</option>
+                            <option value="tiki">TIKI</option>
+                        </select>
+                    </div>
+                    <div id="shipping-cost-container" class="mt-4 p-4 bg-pink-50 rounded-lg hidden">
+                        <p class="font-semibold text-gray-700">Pilih Layanan Pengiriman:</p>
+                        <div id="shipping-cost-loader" class="flex items-center my-2">
+                            <div class="spinner mr-2"></div>
+                            <span>Mencari ongkos kirim...</span>
+                        </div>
+                        <div id="shipping-cost-result" class="space-y-2 mt-2"></div>
+                        <p id="shipping-cost-error" class="text-red-500 text-sm mt-2"></p>
+                    </div>
                 </form>
             </div>
             <div class="p-6 border-t bg-gray-50 rounded-b-lg">
                 <div class="flex justify-between items-center mb-2"><span class="text-gray-600">Subtotal Produk</span><span id="summary-subtotal" class="font-semibold"></span></div>
-                <div class="flex justify-between items-center mb-4"><span class="text-gray-600">Ongkos Kirim</span><span class="font-semibold text-sm text-gray-500">Akan diinfokan Admin</span></div>
+                <div class="flex justify-between items-center mb-2"><span class="text-gray-600">Ongkos Kirim</span><span id="summary-shipping" class="font-semibold">Rp 0</span></div>
+                <hr class="my-2">
                 <div class="flex justify-between items-center text-xl font-bold text-brand"><span >Total Pembayaran</span><span id="summary-grandtotal"></span></div>
                 <div class="flex justify-end space-x-4 mt-6">
                     <button type="button" id="cancel-checkout-btn" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Batal</button>
@@ -261,7 +306,12 @@
         document.addEventListener('DOMContentLoaded', () => {
             // --- KONFIGURASI ---
             const WHATSAPP_NUMBER = '6281914828763';
-            
+            const BINDERBYTE_API_KEY = '990c2606587d7318c449e8eacbe3334f6dc9eea23c71d569b4481b4b058a8630';
+            // PENTING: Tentukan ID kota asal pengiriman Anda.
+            // Anda bisa cari ID kota Anda menggunakan API Binderbyte, atau lihat di dropdown setelah memilih provinsi.
+            // Contoh: Kota Bandung ID = 3273
+            const ORIGIN_CITY_ID = '3273'; // Ganti dengan ID kota asal Anda
+
             // --- TEMPAT ANDA MEMBUAT KODE PROMO ---
             const PROMO_CODES = {
                 "DISKON10RB": { type: 'fixed', value: 10000 },
@@ -271,6 +321,7 @@
             // --- STATE ---
             let cart = [];
             let appliedPromo = null;
+            let selectedShipping = null;
 
             // --- SELECTORS ---
             const cartButton = document.getElementById('cart-button'),
@@ -295,17 +346,26 @@
                   checkoutForm = document.getElementById('checkout-form'),
                   addToCartButtons = document.querySelectorAll('.add-to-cart-btn'),
                   summarySubtotal = document.getElementById('summary-subtotal'),
+                  summaryShipping = document.getElementById('summary-shipping'),
                   summaryGrandtotal = document.getElementById('summary-grandtotal'),
                   submitOrderBtn = document.getElementById('submit-order-btn'),
                   navLinks = document.querySelectorAll('.nav-link'),
                   contactForm = document.getElementById('contact-form'),
                   mobileMenu = document.getElementById('mobile-menu'),
-                  mobileMenuButton = document.getElementById('mobile-menu-button');
+                  mobileMenuButton = document.getElementById('mobile-menu-button'),
+                  provinceSelect = document.getElementById('province'),
+                  citySelect = document.getElementById('city'),
+                  cityLoader = document.getElementById('city-loader'),
+                  courierSelect = document.getElementById('courier'),
+                  shippingCostContainer = document.getElementById('shipping-cost-container'),
+                  shippingCostLoader = document.getElementById('shipping-cost-loader'),
+                  shippingCostResult = document.getElementById('shipping-cost-result'),
+                  shippingCostError = document.getElementById('shipping-cost-error');
 
             // --- FUNCTIONS ---
             const formatCurrency = (amount) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
-            const updateCartView = () => {
+            const calculateTotals = () => {
                 const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                 let discountAmount = 0;
 
@@ -315,16 +375,25 @@
                     } else if (appliedPromo.type === 'percent') {
                         discountAmount = (subtotal * appliedPromo.value) / 100;
                     }
+                }
+                
+                const shippingCost = selectedShipping ? selectedShipping.cost : 0;
+                const grandTotal = subtotal - discountAmount + shippingCost;
+
+                return { subtotal, discountAmount, shippingCost, grandTotal };
+            };
+
+            const updateCartView = () => {
+                const totals = calculateTotals();
+                
+                cartSubtotal.textContent = formatCurrency(totals.subtotal);
+                if (totals.discountAmount > 0) {
                     discountRow.classList.remove('hidden');
-                    cartDiscount.textContent = `- ${formatCurrency(discountAmount)}`;
+                    cartDiscount.textContent = `- ${formatCurrency(totals.discountAmount)}`;
                 } else {
                     discountRow.classList.add('hidden');
                 }
-
-                const grandTotal = subtotal - discountAmount;
-
-                cartSubtotal.textContent = formatCurrency(subtotal);
-                cartGrandtotal.textContent = formatCurrency(grandTotal);
+                cartGrandtotal.textContent = formatCurrency(totals.grandTotal - totals.shippingCost); // Grand total di cart tidak termasuk ongkir
                 cartCount.textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
                 proceedToCheckoutBtn.disabled = cart.length === 0;
 
@@ -363,6 +432,13 @@
                 }
             };
 
+            const updateCheckoutSummary = () => {
+                const totals = calculateTotals();
+                summarySubtotal.textContent = formatCurrency(totals.subtotal);
+                summaryShipping.textContent = formatCurrency(totals.shippingCost);
+                summaryGrandtotal.textContent = formatCurrency(totals.grandTotal);
+            };
+
             const showOverlay = () => overlay.classList.remove('hidden');
             const hideOverlay = () => overlay.classList.add('hidden');
 
@@ -379,9 +455,7 @@
             };
             const openCheckoutModal = () => {
                 closeCartModal();
-                const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                summarySubtotal.textContent = formatCurrency(subtotal);
-                summaryGrandtotal.textContent = formatCurrency(subtotal); // Grandtotal awal sama dengan subtotal
+                updateCheckoutSummary();
                 checkoutModal.classList.remove('hidden');
                 showOverlay();
             };
@@ -442,33 +516,32 @@
                 const formData = new FormData(checkoutForm);
                 const name = formData.get('name');
                 const phone = formData.get('phone');
-                const province = formData.get('province');
-                const city = formData.get('city');
+                const provinceName = provinceSelect.options[provinceSelect.selectedIndex].text;
+                const cityName = citySelect.options[citySelect.selectedIndex].text;
                 const address = formData.get('address');
                 
-                const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                let discountAmount = 0;
-                let promoText = '';
+                const totals = calculateTotals();
 
+                let promoText = '';
                 if (appliedPromo) {
-                     if (appliedPromo.type === 'fixed') {
-                        discountAmount = appliedPromo.value;
-                    } else if (appliedPromo.type === 'percent') {
-                        discountAmount = (subtotal * appliedPromo.value) / 100;
-                    }
-                    promoText = `Diskon (${promoCodeInput.value.toUpperCase()}): -${formatCurrency(discountAmount)}\n`;
+                    promoText = `Diskon (${promoCodeInput.value.toUpperCase()}): -${formatCurrency(totals.discountAmount)}\n`;
                 }
-                const grandTotal = subtotal - discountAmount;
+                
+                let shippingText = 'Ongkos Kirim: (Belum dihitung)\n';
+                if (selectedShipping) {
+                    shippingText = `Ongkos Kirim (${selectedShipping.service.toUpperCase()}): ${formatCurrency(selectedShipping.cost)}\n`;
+                }
 
                 let message = `Halo Berryly Belle, saya mau pesan:\n\n*PESANAN SAYA:*\n`;
                 cart.forEach(item => { message += `- ${item.name} (x${item.quantity})\n`; });
-                message += `\n*DATA PENGIRIMAN:*\nNama: ${name}\nNo. HP: ${phone}\nAlamat: ${address}, ${city}, ${province}\n\n`;
-                message += `*DETAIL PEMBAYARAN:*\nSubtotal: ${formatCurrency(subtotal)}\n`;
+                message += `\n*DATA PENGIRIMAN:*\nNama: ${name}\nNo. HP: ${phone}\nAlamat: ${address}, ${cityName}, ${provinceName}\n\n`;
+                message += `*DETAIL PEMBAYARAN:*\nSubtotal: ${formatCurrency(totals.subtotal)}\n`;
                 if (appliedPromo) {
                     message += promoText;
                 }
-                message += `*Total Sementara: ${formatCurrency(grandTotal)}*\n\n`;
-                message += `Mohon diinformasikan total beserta ongkos kirimnya. Terima kasih.`;
+                message += shippingText;
+                message += `*Total Pembayaran: ${formatCurrency(totals.grandTotal)}*\n\n`;
+                message += `Terima kasih.`;
                 
                 const whatsappUrl = `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`;
                 window.open(whatsappUrl, '_blank');
@@ -476,6 +549,152 @@
 
             const checkFormValidity = () => {
                 submitOrderBtn.disabled = !checkoutForm.checkValidity();
+            };
+
+            // --- Shipping Functions ---
+            const loadProvinces = async () => {
+                try {
+                    const response = await fetch(`https://api.binderbyte.com/wilayah/provinsi?api_key=${BINDERBYTE_API_KEY}`);
+                    const data = await response.json();
+                    if (data.value) {
+                        data.value.forEach(province => {
+                            const option = document.createElement('option');
+                            option.value = province.id;
+                            option.textContent = province.name;
+                            provinceSelect.appendChild(option);
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error loading provinces:", error);
+                }
+            };
+
+            const loadCities = async (provinceId) => {
+                if (!provinceId) return;
+                citySelect.innerHTML = '<option value="">Pilih Kota/Kabupaten...</option>';
+                citySelect.disabled = true;
+                citySelect.classList.add('bg-gray-200');
+                cityLoader.classList.remove('hidden');
+
+                try {
+                    const response = await fetch(`https://api.binderbyte.com/wilayah/kabupaten?api_key=${BINDERBYTE_API_KEY}&id_provinsi=${provinceId}`);
+                    const data = await response.json();
+                    if (data.value) {
+                        data.value.forEach(city => {
+                            const option = document.createElement('option');
+                            option.value = city.id;
+                            option.textContent = city.name;
+                            citySelect.appendChild(option);
+                        });
+                        citySelect.disabled = false;
+                        citySelect.classList.remove('bg-gray-200');
+                    }
+                } catch (error) {
+                    console.error("Error loading cities:", error);
+                } finally {
+                    cityLoader.classList.add('hidden');
+                }
+            };
+            
+            const calculateShippingCost = async () => {
+                const destination = citySelect.value;
+                const courier = courierSelect.value;
+                const totalWeight = cart.reduce((sum, item) => sum + (item.weight * item.quantity), 0);
+
+                if (!destination || !courier || totalWeight === 0) {
+                    shippingCostContainer.classList.add('hidden');
+                    return;
+                }
+
+                shippingCostContainer.classList.remove('hidden');
+                shippingCostLoader.classList.remove('hidden');
+                shippingCostResult.innerHTML = '';
+                shippingCostError.textContent = '';
+                selectedShipping = null;
+                updateCheckoutSummary();
+
+                // =================================================================================
+                // == PENTING: INTEGRASI API ONGKOS KIRIM (CONTOH: RAJAONGKIR) DILAKUKAN DI SINI ==
+                // =================================================================================
+                // Kode di bawah ini adalah SIMULASI. Anda harus menggantinya dengan panggilan
+                // fetch ke API ongkos kirim yang sebenarnya.
+                
+                console.log(`Simulating shipping cost check:
+                    Origin: ${ORIGIN_CITY_ID}
+                    Destination: ${destination}
+                    Weight: ${totalWeight} gr
+                    Courier: ${courier}`);
+
+                // --- GANTI BAGIAN INI DENGAN FETCH API SEBENARNYA ---
+                // Contoh fetch ke RajaOngkir (membutuhkan backend/proxy untuk keamanan API Key):
+                /*
+                try {
+                    const response = await fetch('URL_BACKEND_ANDA_untuk_cek_ongkir', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            origin: ORIGIN_CITY_ID,
+                            destination: destination,
+                            weight: totalWeight,
+                            courier: courier
+                        })
+                    });
+                    const data = await response.json();
+
+                    // Asumsikan 'data' berisi hasil dari RajaOngkir
+                    const results = data.rajaongkir.results[0].costs;
+                    displayShippingOptions(results);
+
+                } catch (error) {
+                    console.error("Error calculating shipping:", error);
+                    shippingCostError.textContent = "Gagal menghitung ongkos kirim. Silakan coba lagi.";
+                } finally {
+                    shippingCostLoader.classList.add('hidden');
+                }
+                */
+
+                // --- SIMULASI DATA (HAPUS BAGIAN INI SETELAH INTEGRASI API SEBENARNYA) ---
+                setTimeout(() => {
+                    const fakeResults = [
+                        { service: 'OKE', description: 'Ongkos Kirim Ekonomis', cost: [{ value: 18000, etd: '3-4' }] },
+                        { service: 'REG', description: 'Layanan Reguler', cost: [{ value: 22000, etd: '1-2' }] },
+                        { service: 'YES', description: 'Yakin Esok Sampai', cost: [{ value: 35000, etd: '1' }] }
+                    ];
+                    displayShippingOptions(fakeResults);
+                    shippingCostLoader.classList.add('hidden');
+                }, 1500); // Simulasi loading 1.5 detik
+                // --- AKHIR BAGIAN SIMULASI ---
+            };
+
+            const displayShippingOptions = (options) => {
+                shippingCostResult.innerHTML = '';
+                if (!options || options.length === 0) {
+                    shippingCostError.textContent = 'Tidak ada layanan pengiriman yang tersedia untuk tujuan ini.';
+                    return;
+                }
+
+                options.forEach((option, index) => {
+                    const cost = option.cost[0].value;
+                    const etd = option.cost[0].etd;
+                    const radioId = `shipping-${index}`;
+
+                    const optionEl = document.createElement('div');
+                    optionEl.className = 'flex items-center p-2 border rounded-lg hover:bg-pink-100';
+                    optionEl.innerHTML = `
+                        <input type="radio" id="${radioId}" name="shipping-option" class="h-4 w-4 text-brand focus:ring-brand border-gray-300"
+                               data-cost="${cost}" data-service="${option.service}" data-etd="${etd}">
+                        <label for="${radioId}" class="ml-3 block text-sm font-medium text-gray-900 w-full cursor-pointer">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="font-bold">${option.service} (${option.description})</p>
+                                    <p class="text-xs text-gray-500">Estimasi ${etd} hari</p>
+                                </div>
+                                <p class="font-semibold">${formatCurrency(cost)}</p>
+                            </div>
+                        </label>
+                    `;
+                    shippingCostResult.appendChild(optionEl);
+                });
             };
 
             // --- EVENT LISTENERS ---
@@ -513,8 +732,26 @@
                 alert('Terima kasih! Pesan Anda telah terkirim.');
                 contactForm.reset();
             });
+
+            // Shipping event listeners
+            provinceSelect.addEventListener('change', () => loadCities(provinceSelect.value));
+            citySelect.addEventListener('change', calculateShippingCost);
+            courierSelect.addEventListener('change', calculateShippingCost);
+
+            shippingCostResult.addEventListener('change', (e) => {
+                if (e.target.name === 'shipping-option') {
+                    selectedShipping = {
+                        cost: parseInt(e.target.dataset.cost),
+                        service: e.target.dataset.service,
+                        etd: e.target.dataset.etd
+                    };
+                    updateCheckoutSummary();
+                }
+            });
             
-            updateCartView(); // Initial call to set cart count
+            // Initial calls
+            loadProvinces();
+            updateCartView();
         });
         
         const observer = new IntersectionObserver((entries) => {
