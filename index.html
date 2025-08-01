@@ -402,7 +402,7 @@
 
             // --- API FUNCTIONS ---
             const fetchRajaOngkirApi = async (endpoint, options = {}) => {
-                const url = `${CORS_PROXY}${encodeURIComponent(`https://rajaongkir.komerce.id/api/v1/${endpoint}`)}`;
+                const url = `${CORS_PROXY}${encodeURIComponent(`https://rajaongkir.komerce.id/api/v1/destination/province/${endpoint}`)}`;
                 const defaultHeaders = { 
                     'key': KOMERCE_API_KEY,
                     'Content-Type': 'application/json',
