@@ -21,8 +21,26 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        // --- NEW: Global Email Verification Check ---
+        if (!firebaseUser.emailVerified) {
+          // FIX: Don't force logout immediately if user is on 'login' or 'register' view.
+          // This allows Auth.tsx to perform 'saveUserProfile' (requires auth) 
+          // or 'sendEmailVerification' (requires auth) before logging out.
+          if (currentView !== 'login' && currentView !== 'register') {
+             await signOut(auth);
+             setCurrentUser(null);
+             setAuthTargetRole(undefined);
+             if (currentView === 'dashboard') {
+                setCurrentView('landing');
+             }
+          }
+          // Do NOT set currentUser if unverified (prevents dashboard access)
+          setLoading(false);
+          return;
+        }
+
         try {
-          // User is signed in, fetch profile
+          // User is signed in AND verified, fetch profile
           const profile = await getUserProfile(firebaseUser.uid);
           if (profile) {
             // CRITICAL FIX: 

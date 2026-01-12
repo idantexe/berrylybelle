@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Order, OrderStatus, ChatMessage, Transaction, Review, CatalogItem, ChatConversation, UserRole } from '../types';
+import { User, Order, OrderStatus, ChatMessage, Transaction, Review, CatalogItem, ChatConversation, UserRole, BodyMeasurements } from '../types';
 import { 
   LayoutDashboard, ShoppingBag, MessageSquare, LogOut, 
   Menu, X, TrendingUp, Users, CreditCard, Star, Send,
@@ -19,6 +19,84 @@ interface MerchantDashboardProps {
   user: User;
   onLogout: () => void;
 }
+
+interface ExtendedOrder extends Order {
+  isReviewed?: boolean;
+}
+
+// Translation Mapping for Body Measurements
+const MEASUREMENT_LABELS: Record<string, string> = {
+  height: "Tinggi Badan",
+  weight: "Berat Badan",
+  bust: "Lingkar Dada",
+  waist: "Lingkar Pinggang",
+  hips: "Lingkar Pinggul",
+  shoulder: "Lebar Bahu",
+  sleeveLength: "Panjang Lengan"
+};
+
+// Helper for Progress Stepper
+const ORDER_STEPS = [
+  OrderStatus.CONSULTATION, 
+  OrderStatus.DESIGN, 
+  OrderStatus.PRODUCTION, 
+  OrderStatus.FINISHING, 
+  OrderStatus.SHIPPED, 
+  OrderStatus.COMPLETED
+];
+
+const renderProgressBar = (currentStatus: OrderStatus) => {
+  // Handle Cancelled/Complaint separately
+  if (currentStatus === OrderStatus.CANCELLED || currentStatus === OrderStatus.COMPLAINT) return null;
+
+  const currentIdx = ORDER_STEPS.indexOf(currentStatus);
+  
+  return (
+    <div className="w-full mt-4">
+      <div className="flex items-center justify-between relative">
+        {/* Background Line */}
+        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-stone-200 -z-10"></div>
+        {/* Active Line */}
+        <div 
+          className="absolute left-0 top-1/2 transform -translate-y-1/2 h-1 bg-berry-rich -z-10 transition-all duration-500"
+          style={{ width: `${(currentIdx / (ORDER_STEPS.length - 1)) * 100}%` }}
+        ></div>
+
+        {ORDER_STEPS.map((step, idx) => {
+          const isCompleted = idx <= currentIdx;
+          const isActive = idx === currentIdx;
+          
+          // Labels mapping (short version)
+          const labels: Record<string, string> = {
+            [OrderStatus.CONSULTATION]: "Konsul",
+            [OrderStatus.DESIGN]: "Desain",
+            [OrderStatus.PRODUCTION]: "Produksi",
+            [OrderStatus.FINISHING]: "Finishing",
+            [OrderStatus.SHIPPED]: "Dikirim",
+            [OrderStatus.COMPLETED]: "Selesai"
+          };
+
+          return (
+            <div key={step} className="flex flex-col items-center group">
+              <div 
+                className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${
+                  isCompleted 
+                    ? 'bg-berry-rich border-berry-rich scale-110' 
+                    : 'bg-stone-100 border-stone-300'
+                } ${isActive ? 'ring-4 ring-berry-rich/20' : ''}`}
+              ></div>
+              <span className={`text-[10px] mt-2 font-bold uppercase tracking-wider transition-colors duration-300 ${
+                isCompleted ? 'text-berry-rich' : 'text-stone-400'
+              } ${isActive ? 'scale-110' : ''}`}>
+                {labels[step]}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLogout }) => {
   const { t } = useLanguage();
@@ -726,9 +804,14 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-berry-rich/20 backdrop-blur-md p-4 animate-fade-in">
            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col border border-white">
               <div className="p-6 border-b border-stone-100 bg-stone-50/50 flex justify-between items-center"><div><h3 className="text-xl font-serif font-bold text-berry-rich">{t.viewOrderDetails}</h3><p className="text-xs text-stone-500 mt-1 font-mono">ID: {selectedOrder.id}</p></div><div className="flex items-center gap-2">{selectedOrder.status !== OrderStatus.CANCELLED && selectedOrder.status !== OrderStatus.COMPLETED && selectedOrder.status !== OrderStatus.SHIPPED && (<button onClick={() => handleCancelOrder(selectedOrder.id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors mr-2 border border-red-100">{t.cancelOrder}</button>)}<button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-stone-100 rounded-full text-stone-400 hover:text-berry-rich transition-colors"><X size={24} /></button></div></div>
-              {selectedOrder.status !== OrderStatus.CANCELLED && selectedOrder.status !== OrderStatus.COMPLAINT && (<div className="bg-white px-8 py-6 border-b border-stone-100 overflow-x-auto"><div className="flex items-center gap-2 text-xs min-w-max">{[OrderStatus.CONSULTATION, OrderStatus.DESIGN, OrderStatus.PRODUCTION, OrderStatus.FINISHING, OrderStatus.SHIPPED, OrderStatus.COMPLETED].map((step, idx) => { const currentIdx = [OrderStatus.CONSULTATION, OrderStatus.DESIGN, OrderStatus.PRODUCTION, OrderStatus.FINISHING, OrderStatus.SHIPPED, OrderStatus.COMPLETED].indexOf(selectedOrder.status); const stepIdx = [OrderStatus.CONSULTATION, OrderStatus.DESIGN, OrderStatus.PRODUCTION, OrderStatus.FINISHING, OrderStatus.SHIPPED, OrderStatus.COMPLETED].indexOf(step); const isActive = stepIdx <= currentIdx; return (<div key={step} className="flex items-center gap-2"><div className={`px-4 py-2 rounded-full font-bold transition-all ${isActive ? 'bg-berry-rich text-white shadow-md' : 'bg-stone-100 text-stone-400'}`}>{step}</div>{idx < 5 && <div className={`w-10 h-1 rounded-full ${isActive ? 'bg-berry-rich' : 'bg-stone-100'}`}></div>}</div>);})}</div></div>)}
+              
+              {/* UPDATED PROGRESS BAR (Stepper) */}
+              <div className="bg-white px-8 py-6 border-b border-stone-100">
+                {renderProgressBar(selectedOrder.status)}
+              </div>
+              
               {selectedOrder.status === OrderStatus.COMPLAINT && (<div className="bg-red-50 px-8 py-6 border-b border-red-100 flex items-center gap-3"><AlertTriangle className="text-red-600" size={24} /><div><p className="text-red-800 font-bold text-lg">Pesanan Dikomplain</p><p className="text-red-600 text-sm">Pelanggan melaporkan masalah.</p></div></div>)}
-              <div className="p-8 overflow-y-auto space-y-8 flex-1"><div className="flex flex-col md:flex-row gap-8"><div className="md:w-1/3 space-y-6"><img src={selectedOrder.imageUrl || 'https://via.placeholder.com/100'} alt="" className="w-full h-48 rounded-2xl object-cover shadow-lg hover:scale-105 transition-transform duration-500" />{renderWorkflowActions(selectedOrder)}</div><div className="md:w-2/3 space-y-6"><div className="flex justify-between items-start"><div><h4 className="font-serif font-bold text-2xl text-berry-rich">{selectedOrder.designName}</h4><p className="text-stone-500 font-medium mt-1">{t.customer}: <span className="text-stone-800">{selectedOrder.customerName}</span></p></div><div className="text-right"><p className="font-serif font-bold text-2xl text-brand-gold">Rp {selectedOrder.price.toLocaleString()}</p><span className="inline-block px-3 py-1 bg-green-100 text-green-700 text-[10px] rounded-full font-bold uppercase tracking-wider mt-1">LUNAS</span></div></div><div className="bg-stone-50 p-6 rounded-2xl border border-stone-100 space-y-5"><div><h5 className="font-bold text-sm text-stone-700 flex items-center gap-2 mb-2 uppercase tracking-wide"><Truck size={16} className="text-berry-rich" /> {t.shippingInfo}</h5><p className="font-medium text-stone-800">{selectedOrder.shippingMethod}</p><p className="text-sm text-stone-500 mt-1">{selectedOrder.shippingAddress}</p></div><div className="border-t border-stone-200 pt-4"><h5 className="font-bold text-sm text-stone-700 flex items-center gap-2 mb-2 uppercase tracking-wide"><MessageSquare size={16} className="text-berry-rich" /> {t.notes}</h5><p className="text-stone-600 italic bg-white p-3 rounded-xl border border-stone-100 text-sm">"{selectedOrder.customerNotes || 'Tidak ada catatan'}"</p></div></div>{selectedOrder.measurements && (<div><h5 className="font-bold text-sm text-berry-rich flex items-center gap-2 mb-4 uppercase tracking-wide"><Ruler size={16} /> {t.bodyMeasurements} (cm)</h5><div className="grid grid-cols-3 gap-3">{Object.entries(selectedOrder.measurements).map(([key, val]) => (<div key={key} className="bg-white border border-stone-200 p-3 rounded-xl text-center hover:border-brand-gold/50 transition-colors"><span className="block text-[10px] text-stone-400 uppercase tracking-wider mb-1 font-bold">{key}</span><span className="font-serif font-bold text-lg text-berry-rich">{val}</span></div>))}</div></div>)}</div></div></div>
+              <div className="p-8 overflow-y-auto space-y-8 flex-1"><div className="flex flex-col md:flex-row gap-8"><div className="md:w-1/3 space-y-6"><img src={selectedOrder.imageUrl || 'https://via.placeholder.com/100'} alt="" className="w-full h-48 rounded-2xl object-cover shadow-lg hover:scale-105 transition-transform duration-500" />{renderWorkflowActions(selectedOrder)}</div><div className="md:w-2/3 space-y-6"><div className="flex justify-between items-start"><div><h4 className="font-serif font-bold text-2xl text-berry-rich">{selectedOrder.designName}</h4><p className="text-stone-500 font-medium mt-1">{t.customer}: <span className="text-stone-800">{selectedOrder.customerName}</span></p></div><div className="text-right"><p className="font-serif font-bold text-2xl text-brand-gold">Rp {selectedOrder.price.toLocaleString()}</p><span className="inline-block px-3 py-1 bg-green-100 text-green-700 text-[10px] rounded-full font-bold uppercase tracking-wider mt-1">LUNAS</span></div></div><div className="bg-stone-50 p-6 rounded-2xl border border-stone-100 space-y-5"><div><h5 className="font-bold text-sm text-stone-700 flex items-center gap-2 mb-2 uppercase tracking-wide"><Truck size={16} className="text-berry-rich" /> {t.shippingInfo}</h5><p className="font-medium text-stone-800">{selectedOrder.shippingMethod}</p><p className="text-sm text-stone-500 mt-1">{selectedOrder.shippingAddress}</p></div><div className="border-t border-stone-200 pt-4"><h5 className="font-bold text-sm text-stone-700 flex items-center gap-2 mb-2 uppercase tracking-wide"><MessageSquare size={16} className="text-berry-rich" /> {t.notes}</h5><p className="text-stone-600 italic bg-white p-3 rounded-xl border border-stone-100 text-sm">"{selectedOrder.customerNotes || 'Tidak ada catatan'}"</p></div></div>{selectedOrder.measurements && (<div><h5 className="font-bold text-sm text-berry-rich flex items-center gap-2 mb-4 uppercase tracking-wide"><Ruler size={16} /> {t.bodyMeasurements} (cm)</h5><div className="grid grid-cols-3 gap-3">{Object.entries(selectedOrder.measurements).map(([key, val]) => (<div key={key} className="bg-white border border-stone-200 p-3 rounded-xl text-center hover:border-brand-gold/50 transition-colors"><span className="block text-[10px] text-stone-400 uppercase tracking-wider mb-1 font-bold">{MEASUREMENT_LABELS[key] || key}</span><span className="font-serif font-bold text-lg text-berry-rich">{val}</span></div>))}</div></div>)}</div></div></div>
            </div>
         </div>
       )}
@@ -977,7 +1060,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
             </div>
           )}
 
-          {activeTab === 'chat' && (<div className="grid md:grid-cols-3 h-[650px] bg-white rounded-[2.5rem] shadow-xl border border-stone-100 overflow-hidden animate-fade-in-up"><div className="border-r border-stone-100 bg-stone-50/50 flex flex-col h-full overflow-hidden"><div className="p-6 border-b border-stone-100"><h3 className="font-serif font-bold text-berry-rich text-xl">{t.chats}</h3></div><div className="flex-1 overflow-y-auto p-3">{activeConversations.map(convo => (<div key={convo.id} onClick={() => setActiveChatId(convo.id)} className={`p-4 mb-2 rounded-2xl cursor-pointer transition-all ${activeChatId === convo.id ? 'bg-white shadow-md border border-stone-100' : 'hover:bg-white/50 hover:shadow-sm'}`}><div className="flex justify-between mb-1"><span className={`font-bold text-sm ${activeChatId === convo.id ? 'text-berry-rich' : 'text-stone-700'}`}>{convo.participantName}</span></div><p className="text-xs text-stone-500 truncate font-medium">Klik untuk chat</p></div>))}{activeConversations.length === 0 && (<p className="text-center p-4 text-stone-400 text-sm">Tidak ada chat aktif.</p>)}</div></div><div className="md:col-span-2 flex flex-col bg-white h-full overflow-hidden">{activeChatId ? (<><div className="p-6 border-b border-stone-100 bg-white flex items-center justify-between"><h3 className="font-serif font-bold text-berry-rich text-xl">Chat</h3></div><div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FDFBF7]">{messages.map((msg) => (<div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[75%] p-4 rounded-2xl shadow-sm relative group transition-transform hover:scale-[1.01] ${msg.isMe ? 'bg-berry-rich text-white rounded-tr-none shadow-berry-rich/20' : 'bg-white text-stone-800 rounded-tl-none border border-stone-100'}`}>{msg.attachmentUrl && (<div className="mb-3 rounded-xl overflow-hidden border border-white/20"><img src={msg.attachmentUrl} alt="Attached" className="w-full h-auto max-h-48 object-cover" /></div>)}<p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.text}</p><span className={`text-[10px] block text-right mt-1.5 opacity-70 font-medium ${msg.isMe ? 'text-pink-100' : 'text-stone-400'}`}>{msg.timestamp?.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div></div>))}</div><div className="p-6 border-t border-stone-100 bg-white"><div className="flex gap-3"><label className={`p-4 bg-stone-50 border border-stone-200 rounded-2xl cursor-pointer hover:bg-stone-100 transition-colors flex items-center justify-center ${isUploadingChat ? 'opacity-50 pointer-events-none' : ''}`}>{isUploadingChat ? <Loader2 className="animate-spin text-stone-500" size={20} /> : <Paperclip size={20} className="text-stone-500" />}<input type="file" className="hidden" accept="image/*" onChange={handleChatImageUpload} disabled={isUploadingChat} /></label><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={t.typeMessage || "Ketik pesan..."} className="flex-1 p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20 text-sm font-medium transition-all" /><button onClick={handleSendMessage} className="p-4 bg-berry-rich text-white rounded-2xl hover:bg-berry-dark transition-colors shadow-lg hover:shadow-berry-rich/30"><Send size={20} /></button></div></div></>) : (<div className="flex-1 flex items-center justify-center flex-col text-stone-300"><div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6"><MessageSquare size={32} className="opacity-50" /></div><p className="font-serif text-lg">{t.selectConversation}</p></div>)}</div></div>)}
+          {activeTab === 'chat' && (<div className="grid md:grid-cols-3 h-[650px] bg-white rounded-[2.5rem] shadow-xl border border-stone-100 overflow-hidden animate-fade-in-up"><div className="border-r border-stone-100 bg-stone-50/50 flex flex-col h-full overflow-hidden"><div className="p-6 border-b border-stone-100"><h3 className="font-serif font-bold text-berry-rich text-xl">{t.consultations}</h3></div><div className="flex-1 overflow-y-auto p-3">{activeConversations.map(convo => (<div key={convo.id} onClick={() => setActiveChatId(convo.id)} className={`p-4 mb-2 rounded-2xl cursor-pointer transition-all ${activeChatId === convo.id ? 'bg-white shadow-md border border-stone-100' : 'hover:bg-white/50 hover:shadow-sm'}`}><div className="flex justify-between mb-1"><span className={`font-bold text-sm ${activeChatId === convo.id ? 'text-berry-rich' : 'text-stone-700'}`}>{convo.participantName}</span></div><p className="text-xs text-stone-500 truncate font-medium">Klik untuk chat</p></div>))}{activeConversations.length === 0 && (<p className="text-center p-4 text-stone-400 text-sm">Tidak ada chat aktif.</p>)}</div></div><div className="md:col-span-2 flex flex-col bg-white h-full overflow-hidden">{activeChatId ? (<><div className="p-6 border-b border-stone-100 bg-white flex items-center justify-between"><h3 className="font-serif font-bold text-berry-rich text-xl">Chat</h3></div><div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FDFBF7]">{messages.map((msg) => (<div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[75%] p-4 rounded-2xl shadow-sm relative group transition-transform hover:scale-[1.01] ${msg.isMe ? 'bg-berry-rich text-white rounded-tr-none shadow-berry-rich/20' : 'bg-white text-stone-800 rounded-tl-none border border-stone-100'}`}>{msg.attachmentUrl && (<div className="mb-3 rounded-xl overflow-hidden border border-white/20"><img src={msg.attachmentUrl} alt="Attached" className="w-full h-auto max-h-48 object-cover" /></div>)}<p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.text}</p><span className={`text-[10px] block text-right mt-1.5 opacity-70 font-medium ${msg.isMe ? 'text-pink-100' : 'text-stone-400'}`}>{msg.timestamp?.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div></div>))}</div><div className="p-6 border-t border-stone-100 bg-white"><div className="flex gap-3"><label className={`p-4 bg-stone-50 border border-stone-200 rounded-2xl cursor-pointer hover:bg-stone-100 transition-colors flex items-center justify-center ${isUploadingChat ? 'opacity-50 pointer-events-none' : ''}`}>{isUploadingChat ? <Loader2 className="animate-spin text-stone-500" size={20} /> : <Paperclip size={20} className="text-stone-500" />}<input type="file" className="hidden" accept="image/*" onChange={handleChatImageUpload} disabled={isUploadingChat} /></label><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={t.typeMessage || "Ketik pesan..."} className="flex-1 p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20 text-sm font-medium transition-all" /><button onClick={handleSendMessage} className="p-4 bg-berry-rich text-white rounded-2xl hover:bg-berry-dark transition-colors shadow-lg hover:shadow-berry-rich/30"><Send size={20} /></button></div></div></>) : (<div className="flex-1 flex items-center justify-center flex-col text-stone-300"><div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6"><MessageSquare size={32} className="opacity-50" /></div><p className="font-serif text-lg">{t.selectConversation}</p></div>)}</div></div>)}
           {activeTab === 'profile' && (
              <div className="space-y-8 animate-fade-in-up">
               <h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.profile}</h2>
