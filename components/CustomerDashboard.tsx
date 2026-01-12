@@ -4,7 +4,7 @@ import {
   Ruler, ShoppingBag, MessageSquare, Wand2, LogOut, 
   Menu, X, Upload, CheckCircle, Search, Star, CreditCard, Send, ArrowLeft,
   ChevronRight, MapPin, Truck, CreditCard as CardIcon, FileText, User as UserIcon, Settings, Lock, Bell, Paperclip, Save, Camera, Loader2, RefreshCw, UploadCloud, Sparkles, AlertTriangle, Copy, Check, AlertCircle, Trash2, Eye,
-  Image as ImageIcon, ZoomIn, Calendar, Filter, Download
+  Image as ImageIcon, ZoomIn, Calendar, Filter, Download, Palette, Shirt, Zap
 } from 'lucide-react';
 import { generateStyleAdvice } from '../services/geminiService';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -39,6 +39,10 @@ const MEASUREMENT_LABELS: Record<keyof BodyMeasurements, string> = {
   shoulder: "Lebar Bahu",
   sleeveLength: "Panjang Lengan"
 };
+
+const STYLE_TAGS = [
+  "Minimalist", "Bohemian", "Vintage", "Streetwear", "Elegant", "Edgy", "Classic", "Casual Chic"
+];
 
 // Helper for Progress Stepper
 const ORDER_STEPS = [
@@ -120,6 +124,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeConversations, setActiveConversations] = useState<ChatConversation[]>([]);
   
+  // Search & Filter States
+  const [orderSearchTerm, setOrderSearchTerm] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>('All');
+  const [transSearchTerm, setTransSearchTerm] = useState('');
+
   // Order Details Modal State
   const [selectedOrder, setSelectedOrder] = useState<ExtendedOrder | null>(null);
 
@@ -208,7 +217,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   
-  const [currentChatParticipant, setCurrentChatParticipant] = useState<{id: string, name: string} | null>(null);
+  const [currentChatParticipant, setCurrentChatParticipant] = useState<{id: string, name: string, avatarUrl?: string} | null>(null);
 
   // Checkout Wizard State
   const [isCheckoutOpen, setCheckoutOpen] = useState(false);
@@ -399,6 +408,17 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
     }));
   }, [user]);
 
+  // --- FILTERED ORDERS LOGIC ---
+  const filteredOrders = myOrders.filter(order => {
+      const matchStatus = orderStatusFilter === 'All' || order.status === orderStatusFilter;
+      const searchLower = orderSearchTerm.toLowerCase();
+      const matchSearch = 
+          order.id.toLowerCase().includes(searchLower) ||
+          (order.merchantName && order.merchantName.toLowerCase().includes(searchLower)) ||
+          order.designName.toLowerCase().includes(searchLower);
+      return matchStatus && matchSearch;
+  });
+
   // --- FILTERED TRANSACTIONS LOGIC ---
   const filteredTransactions = transactions.filter(t => {
       const matchStatus = transFilters.status === 'All' || t.status === transFilters.status;
@@ -414,7 +434,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
           matchDate = matchDate && new Date(t.date) < end;
       }
 
-      return matchStatus && matchDate;
+      // Add Text Search Logic
+      const searchLower = transSearchTerm.toLowerCase();
+      const matchSearch = 
+          t.id.toLowerCase().includes(searchLower) ||
+          t.description.toLowerCase().includes(searchLower);
+
+      return matchStatus && matchDate && matchSearch;
   });
 
   const handleAiConsultation = async () => {
@@ -422,6 +448,13 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
     const advice = await generateStyleAdvice(aiPrompt.occasion, aiPrompt.preference, aiPrompt.bodyType, language);
     setAiRecommendation(advice);
     setLoadingAi(false);
+  };
+
+  // Add function to copy advice
+  const handleCopyAdvice = () => {
+      if (!aiRecommendation) return;
+      handleCopy(aiRecommendation);
+      showToast('success', 'Tersalin', 'Rekomendasi disalin ke clipboard.');
   };
 
   const handleSendMessage = async () => {
@@ -533,7 +566,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
     navigator.clipboard.writeText(text).then(() => {
         setCopiedText(text);
         setTimeout(() => setCopiedText(null), 2000);
-        showToast('success', 'Disalin', 'Nomor berhasil disalin ke clipboard.');
+        showToast('success', 'Disalin', 'Teks berhasil disalin ke clipboard.');
     });
   };
 
@@ -612,7 +645,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
     
     setCurrentChatParticipant({
         id: merchant.id,
-        name: merchant.brandName || merchant.name
+        name: merchant.brandName || merchant.name,
+        avatarUrl: merchant.photoUrl
     });
     
     const exists = activeConversations.find(c => c.id === chatId);
@@ -622,7 +656,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
             participantName: merchant.brandName || merchant.name,
             lastMessage: initialMessage || 'Mulai percakapan',
             timestamp: new Date(),
-            unreadCount: 0
+            unreadCount: 0,
+            avatarUrl: merchant.photoUrl
         }]);
     }
     
@@ -888,24 +923,28 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
     }
   };
 
-  const handleChatSelect = (chatId: string, participantName: string) => {
+  const handleChatSelect = (chatId: string, participantName: string, avatarUrl?: string) => {
     setActiveChatId(chatId);
     
-    // Extract ID logic for "Find Partner" or generic chats where name is known but ID might not be in convo object yet
-    // Since we don't store other ID in conversation object in this simple version, we parse it from chatId
-    // chatId is sorted(uid1, uid2). 
     const parts = chatId.split('_');
     const otherId = parts.find(id => id !== user.id);
     
     if (otherId) {
         setCurrentChatParticipant({
             id: otherId,
-            name: participantName
+            name: participantName,
+            avatarUrl: avatarUrl
         });
     }
   };
 
-  const NavItem = ({ id, icon: Icon, label }: { id: string; icon: any; label: string }) => (
+  // --- BADGE CALCULATIONS ---
+  // Count orders that are 'Shipped' (waiting for customer to receive)
+  const actionRequiredOrdersCount = myOrders.filter(o => o.status === OrderStatus.SHIPPED).length;
+  // Count unread chats
+  const unreadChatsCount = activeConversations.reduce((acc, chat) => acc + (chat.unreadCount || 0), 0);
+
+  const NavItem = ({ id, icon: Icon, label, badgeCount }: { id: string; icon: any; label: string; badgeCount?: number }) => (
     <button
       onClick={() => { setActiveTab(id as any); setSidebarOpen(false); setSelectedMerchant(null); }}
       className={`w-full flex items-center gap-4 px-6 py-4 transition-all duration-300 relative group ${
@@ -918,7 +957,14 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
       {activeTab === id && (
          <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent"></div>
       )}
-      <Icon size={20} className={activeTab === id ? 'text-brand-gold' : ''} />
+      <div className="relative">
+        <Icon size={20} className={activeTab === id ? 'text-brand-gold' : ''} />
+        {badgeCount && badgeCount > 0 ? (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-bounce">
+                {badgeCount > 9 ? '9+' : badgeCount}
+            </span>
+        ) : null}
+      </div>
       <span className="font-medium tracking-wide">{label}</span>
     </button>
   );
@@ -951,7 +997,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
         </div>
       )}
 
-      {/* ... Modals omitted for brevity, logic unchanged ... */}
       {/* Confirmation Modal for Receiving Order */}
       {isReceiveConfirmOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
@@ -1097,7 +1142,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
                     <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${selectedTransaction.status === 'Success' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
                         <CheckCircle size={32} />
                     </div>
-                    <h3 className="text-2xl font-serif font-bold text-berry-rich">Pembayaran {selectedTransaction.status}</h3>
+                    <h3 className="text-2xl font-serif font-bold text-berry-rich">Pembayaran {selectedTransaction.status === 'Success' ? 'Berhasil' : (selectedTransaction.status === 'Pending' ? 'Menunggu' : 'Gagal')}</h3>
                     <p className="text-stone-500 text-sm mt-1">{new Date(selectedTransaction.date).toLocaleString()}</p>
                     
                     <div className="my-8">
@@ -1133,7 +1178,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
         </div>
       )}
 
-      {/* Image Preview Modal (Dedicated for Viewing) */}
+      {/* Image Preview Modal */}
       {previewItem && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fade-in">
             <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col items-center">
@@ -1175,8 +1220,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
         </div>
       )}
 
-      {/* ... Review Modal, Cancel Modal, Complaint Modal, Receive Modal ... */}
-      {/* (Code for these modals remains unchanged, omitted for brevity but part of the final file) */}
+      {/* Review Modal */}
       {isReviewModalOpen && selectedOrderForReview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-berry-rich/20 backdrop-blur-md p-4 animate-fade-in">
            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden border border-white">
@@ -1213,11 +1257,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
       {/* Customer Order Details Modal */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-berry-rich/20 backdrop-blur-md p-4 animate-fade-in">
-           {/* ... (Existing Order Details Modal Content) ... */}
            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col border border-white">
               <div className="p-6 border-b border-stone-100 bg-stone-50/50 flex justify-between items-center"><div><h3 className="text-xl font-serif font-bold text-berry-rich">{t.viewOrderDetails}</h3><p className="text-xs text-stone-500 mt-1 font-mono">ID: {selectedOrder.id}</p></div><div className="flex items-center gap-2">{selectedOrder.status === OrderStatus.CONSULTATION && (<button onClick={() => promptCancelOrder(selectedOrder)} className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors flex items-center gap-2"><Trash2 size={16} /> Batalkan Pesanan</button>)}<button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-stone-100 rounded-full text-stone-400 hover:text-berry-rich transition-colors"><X size={24} /></button></div></div>
               
-              {/* UPDATED PROGRESS BAR (Stepper) */}
               <div className="bg-white px-8 py-6 border-b border-stone-100">
                 {renderProgressBar(selectedOrder.status)}
               </div>
@@ -1229,29 +1271,37 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
         </div>
       )}
 
-      {/* Checkout Modal with Multiple Images Gallery (Existing) */}
+      {/* Checkout Modal */}
       {isCheckoutOpen && checkoutItem && selectedMerchant && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-berry-rich/20 backdrop-blur-md p-4">
-          {/* ... (Existing Checkout Modal Content) ... */}
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col border border-white animate-fade-in-up">
             <div className="p-6 border-b border-stone-100 bg-stone-50/50 flex justify-between items-center"><div><h3 className="text-2xl font-serif font-bold text-berry-rich">{t.checkoutTitle}</h3><div className="flex items-center gap-2 text-sm text-stone-500 mt-1"><div className="flex gap-1">{[1,2,3,4].map(i => (<div key={i} className={`h-1.5 w-6 rounded-full ${i <= checkoutStep ? 'bg-brand-gold' : 'bg-stone-200'}`}></div>))}</div><span>{t.step1} {checkoutStep}/4</span></div></div><button onClick={() => setCheckoutOpen(false)} className="p-2 hover:bg-stone-100 rounded-full text-stone-400 hover:text-berry-rich transition-colors"><X size={24} /></button></div><div className="flex-1 overflow-y-auto p-6 md:p-8">{checkoutStep === 1 && (<div className="space-y-8 animate-fade-in"><div className="text-center"><div className="w-20 h-20 bg-berry-rich/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-berry-rich/10"><Ruler size={40} className="text-berry-rich" /></div><h4 className="text-xl font-serif font-bold text-berry-rich">{t.step1}</h4><p className="text-stone-500 text-sm mt-2 max-w-xs mx-auto">{t.reviewMeasurements}</p></div><div className="grid grid-cols-2 gap-4">{Object.entries(checkoutData.measurements).map(([key, value]) => (<div key={key} className="bg-white p-4 rounded-2xl border border-stone-200 hover:border-brand-gold/50 focus-within:border-brand-gold transition-colors shadow-sm"><label className="block text-[10px] text-stone-500 uppercase tracking-wider mb-1 font-bold">{MEASUREMENT_LABELS[key as keyof BodyMeasurements] || key}</label><div className="flex items-end gap-1"><input type="number" value={value} onChange={(e) => setCheckoutData({...checkoutData, measurements: {...checkoutData.measurements, [key]: parseFloat(e.target.value) || 0}})} className="bg-transparent font-serif font-bold text-2xl w-full focus:outline-none text-berry-rich" /><span className="text-xs text-stone-400 mb-1">cm</span></div></div>))}</div></div>)}{checkoutStep === 2 && (<div className="space-y-6 animate-fade-in"><div className="bg-white p-5 rounded-3xl border border-stone-100 shadow-sm"><div className="w-full h-64 rounded-2xl overflow-hidden mb-3 bg-stone-100"><img src={activeItemImage || 'https://via.placeholder.com/300'} alt="Design" className="w-full h-full object-contain" /></div>{checkoutItem.images && checkoutItem.images.length > 1 && (<div className="flex gap-2 overflow-x-auto pb-2">{checkoutItem.images.map((img, idx) => (<button key={idx} onClick={() => setActiveItemImage(img)} className={`w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all ${activeItemImage === img ? 'border-berry-rich opacity-100' : 'border-transparent opacity-60 hover:opacity-100'}`}><img src={img} alt={`Thumb ${idx}`} className="w-full h-full object-cover" /></button>))}</div>)}<div className="mt-4"><h4 className="font-serif font-bold text-xl text-berry-rich">{checkoutItem.title}</h4><p className="text-stone-500 text-sm mb-2">{selectedMerchant.brandName || selectedMerchant.name}</p><span className="bg-brand-gold/10 text-brand-gold/90 font-bold px-3 py-1 rounded-full text-sm">Rp {checkoutItem.price?.toLocaleString()}</span></div></div><div><label className="block font-medium mb-3 text-berry-rich">{t.notes}</label><textarea className="w-full p-5 border border-stone-200 rounded-3xl focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none min-h-[150px] shadow-inner bg-stone-50" placeholder={t.notesPlaceholder} value={checkoutData.notes} onChange={(e) => setCheckoutData({...checkoutData, notes: e.target.value})} /></div></div>)}{checkoutStep === 3 && (<div className="space-y-8 animate-fade-in"><div><label className="block font-bold mb-3 text-berry-rich flex items-center gap-2"><MapPin size={18} className="text-brand-gold" /> {t.shippingAddress}</label><textarea className="w-full p-4 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none h-24 bg-white shadow-sm mb-4" placeholder="Jalan Mawar No. 123..." value={checkoutData.address} onChange={(e) => setCheckoutData({...checkoutData, address: e.target.value})} /><div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-xs font-bold text-stone-500 uppercase mb-2">Provinsi</label><select className="w-full p-3 bg-white border border-stone-200 rounded-xl text-sm" value={checkoutData.provinceId} onChange={handleProvinceChange}><option value="">Pilih Provinsi</option>{provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div><div><label className="block text-xs font-bold text-stone-500 uppercase mb-2">Kota/Kabupaten {isLoadingRegions && <Loader2 className="inline animate-spin ml-1" size={12} />}</label><select className="w-full p-3 bg-white border border-stone-200 rounded-xl text-sm" value={checkoutData.cityId} onChange={handleCityChange} disabled={!checkoutData.provinceId}><option value="">Pilih Kota</option>{cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div></div></div><div><label className="block font-bold mb-3 text-berry-rich flex items-center gap-2"><Truck size={18} className="text-brand-gold" /> {t.courier}</label><div className="flex gap-2 mb-4"><select className="w-full p-4 bg-white border border-stone-200 rounded-2xl focus:ring-2 focus:ring-brand-gold/20 outline-none shadow-sm appearance-none" value={checkoutData.courier} onChange={(e) => setCheckoutData({...checkoutData, courier: e.target.value})}><option value="">Pilih Kurir...</option><option value="jne">JNE</option><option value="pos">POS Indonesia</option><option value="tiki">TIKI</option></select><button onClick={handleCheckShipping} disabled={isLoadingShippingCost} className="px-6 py-3 bg-stone-800 text-white rounded-xl font-bold hover:bg-black transition-colors whitespace-nowrap">{isLoadingShippingCost ? <Loader2 className="animate-spin" /> : "Cek Ongkir"}</button></div>{shippingOptions.length > 0 && (<div className="space-y-3 bg-stone-50 p-4 rounded-2xl border border-stone-200 mb-6"><p className="text-xs font-bold text-stone-500 uppercase">Pilih Layanan</p>{shippingOptions.map((opt, idx) => (<label key={idx} className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-all ${checkoutData.shippingMethod === opt.service ? 'border-brand-gold bg-white shadow-sm' : 'border-stone-200 hover:bg-white'}`}><div className="flex items-center gap-3"><input type="radio" name="shipping" className="w-4 h-4 text-brand-gold focus:ring-brand-gold" checked={checkoutData.shippingMethod === opt.service} onChange={() => setCheckoutData({...checkoutData, shippingMethod: opt.service, shippingCost: opt.cost})} /><div><p className="font-bold text-sm text-stone-800">{opt.service} <span className="font-normal text-stone-500">({opt.description})</span></p><p className="text-xs text-stone-400">Estimasi: {opt.etd}</p></div></div><p className="font-serif font-bold text-berry-rich">Rp {opt.cost.toLocaleString()}</p></label>))}</div>)}</div><div><label className="block font-bold mb-3 text-berry-rich flex items-center gap-2"><CardIcon size={18} className="text-brand-gold" /> {t.paymentMethod}</label><div className="grid grid-cols-2 gap-3 mb-6">{(selectedMerchant.bankDetails?.bankName || selectedMerchant.bankAccount) && (<button onClick={() => setCheckoutData({...checkoutData, paymentMethod: 'Bank Transfer'})} className={`p-4 rounded-2xl text-sm font-bold transition-all border ${checkoutData.paymentMethod === 'Bank Transfer' ? 'border-berry-rich bg-berry-rich text-white shadow-lg' : 'border-stone-200 bg-white text-stone-600 hover:border-berry-rich/30'}`}>{t.bankTransfer}</button>)}{selectedMerchant.ewalletDetails?.walletName && (<button onClick={() => setCheckoutData({...checkoutData, paymentMethod: 'E-Wallet'})} className={`p-4 rounded-2xl text-sm font-bold transition-all border ${checkoutData.paymentMethod === 'E-Wallet' ? 'border-berry-rich bg-berry-rich text-white shadow-lg' : 'border-stone-200 bg-white text-stone-600 hover:border-berry-rich/30'}`}>{t.eWallet}</button>)}</div>{checkoutData.paymentMethod === 'Bank Transfer' && (<div className="bg-stone-50 border border-stone-200 rounded-2xl p-6 space-y-4 animate-fade-in"><div className="bg-white p-5 rounded-2xl border border-stone-100 shadow-sm relative group hover:border-brand-gold/50 transition-colors"><p className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">Tujuan Transfer</p>{selectedMerchant.bankDetails ? (<><div className="flex items-center justify-between mb-1"><p className="text-2xl font-mono font-bold text-berry-rich tracking-tight">{selectedMerchant.bankDetails.accountNumber}</p><button onClick={() => handleCopy(selectedMerchant.bankDetails!.accountNumber)} className="p-2 bg-stone-100 hover:bg-green-50 text-stone-500 hover:text-green-600 rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-2 font-bold text-xs">{copiedText === selectedMerchant.bankDetails.accountNumber ? <><Check size={16} /> Salin</> : <><Copy size={16} /> Salin</>}</button></div><p className="font-bold text-stone-800 text-lg">{selectedMerchant.bankDetails.bankName.toUpperCase()}</p><p className="text-sm text-stone-500 font-medium">a.n. {selectedMerchant.bankDetails.accountHolder}</p></>) : (<p className="text-lg font-mono font-bold text-berry-rich">{selectedMerchant.bankAccount || "Tanyakan Mitra via Chat"}</p>)}</div><div><label className="block text-sm font-bold text-stone-600 mb-2">Unggah Bukti Bayar (Resi)</label><div className="flex gap-4 items-center"><label className={`flex-1 cursor-pointer ${isUploadingProof ? 'opacity-50 pointer-events-none' : ''}`}><div className="h-24 border-2 border-dashed border-stone-300 rounded-xl bg-white hover:bg-stone-50 transition-colors flex flex-col items-center justify-center text-center p-2">{isUploadingProof ? (<Loader2 className="animate-spin text-berry-rich" size={20} />) : (<UploadCloud className="text-stone-400 mb-1" size={20} />)}<span className="text-xs font-medium text-stone-500">{isUploadingProof ? 'Mengunggah...' : 'Klik untuk unggah bukti'}</span><input type="file" className="hidden" accept="image/*" onChange={handlePaymentProofUpload} /></div></label>{checkoutData.paymentProofUrl && (<div className="h-24 w-24 rounded-xl overflow-hidden border border-stone-200 relative"><img src={checkoutData.paymentProofUrl} alt="Proof" className="w-full h-full object-cover" /><div className="absolute inset-0 bg-green-500/20 flex items-center justify-center"><CheckCircle size={20} className="text-white drop-shadow-md" /></div></div>)}</div></div></div>)}{checkoutData.paymentMethod === 'E-Wallet' && selectedMerchant.ewalletDetails && (<div className="bg-stone-50 border border-stone-200 rounded-2xl p-6 space-y-4 animate-fade-in"><div className="bg-white p-5 rounded-2xl border border-stone-100 shadow-sm relative group hover:border-brand-gold/50 transition-colors"><p className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">Tujuan {selectedMerchant.ewalletDetails.walletName}</p><div className="flex items-center justify-between mb-1"><p className="text-2xl font-mono font-bold text-berry-rich tracking-tight">{selectedMerchant.ewalletDetails.phoneNumber}</p><button onClick={() => handleCopy(selectedMerchant.ewalletDetails!.phoneNumber)} className="p-2 bg-stone-100 hover:bg-green-50 text-stone-500 hover:text-green-600 rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-2 font-bold text-xs">{copiedText === selectedMerchant.ewalletDetails.phoneNumber ? <><Check size={16} /> Salin</> : <><Copy size={16} /> Salin</>}</button></div></div><div><label className="block text-sm font-bold text-stone-600 mb-2">Unggah Bukti Bayar</label><div className="flex gap-4 items-center"><label className={`flex-1 cursor-pointer ${isUploadingProof ? 'opacity-50 pointer-events-none' : ''}`}><div className="h-24 border-2 border-dashed border-stone-300 rounded-xl bg-white hover:bg-stone-50 transition-colors flex flex-col items-center justify-center text-center p-2">{isUploadingProof ? (<Loader2 className="animate-spin text-berry-rich" size={20} />) : (<UploadCloud className="text-stone-400 mb-1" size={20} />)}<span className="text-xs font-medium text-stone-500">{isUploadingProof ? 'Mengunggah...' : 'Klik untuk unggah bukti'}</span><input type="file" className="hidden" accept="image/*" onChange={handlePaymentProofUpload} /></div></label>{checkoutData.paymentProofUrl && (<div className="h-24 w-24 rounded-xl overflow-hidden border border-stone-200 relative"><img src={checkoutData.paymentProofUrl} alt="Proof" className="w-full h-full object-cover" /><div className="absolute inset-0 bg-green-500/20 flex items-center justify-center"><CheckCircle size={20} className="text-white drop-shadow-md" /></div></div>)}</div></div></div>)}</div></div>)}{checkoutStep === 4 && (<div className="space-y-8 animate-fade-in"><div className="text-center"><div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600 animate-pulse"><FileText size={40} /></div><h4 className="text-3xl font-serif font-bold text-berry-rich">{t.orderSummary}</h4></div><div className="bg-stone-50 p-8 rounded-[2rem] space-y-4 border border-stone-100 relative overflow-hidden"><div className="absolute top-0 right-0 w-32 h-32 bg-brand-gold/5 rounded-full -translate-y-1/2 translate-x-1/2"></div><div className="flex justify-between pb-4 border-b border-stone-200 relative z-10"><span className="text-stone-500 font-medium">Desain</span><span className="font-bold text-berry-rich font-serif text-lg">{checkoutItem.title}</span></div><div className="flex justify-between pb-4 border-b border-stone-200 relative z-10"><span className="text-stone-500 font-medium">Mitra</span><span className="font-bold text-stone-800">{selectedMerchant.brandName || selectedMerchant.name}</span></div><div className="flex justify-between pb-4 border-b border-stone-200 relative z-10"><span className="text-stone-500 font-medium">Pengiriman</span><span className="font-bold text-stone-800">{checkoutData.courier.toUpperCase()} - {checkoutData.shippingMethod}</span></div><div className="flex justify-between pt-2 relative z-10"><span className="text-lg font-bold text-berry-rich">{t.totalPrice}</span><span className="text-2xl font-serif font-bold text-brand-gold">Rp {((checkoutItem.price || 0) + checkoutData.shippingCost).toLocaleString()}</span></div>{checkoutData.paymentProofUrl && (<div className="pt-4 border-t border-stone-200 relative z-10"><p className="text-xs font-bold text-stone-500 mb-2">Bukti Pembayaran Terlampir:</p><img src={checkoutData.paymentProofUrl} alt="Proof" className="h-16 rounded-lg border border-stone-200" /></div>)}<p className="text-xs text-stone-400 mt-2 text-center italic relative z-10">{t.finalPriceNote}</p></div></div>)}</div><div className="p-6 border-t border-stone-100 bg-white flex justify-between gap-4 rounded-b-[2rem]">{checkoutStep > 1 && (<button onClick={() => setCheckoutStep(prev => prev - 1)} className="px-8 py-4 border border-stone-200 text-stone-600 rounded-xl font-bold hover:bg-stone-50 transition-colors">{t.back}</button>)}{checkoutStep < 4 ? (<button onClick={() => setCheckoutStep(prev => prev + 1)} className="px-8 py-4 bg-berry-rich text-white rounded-xl font-bold hover:bg-berry-dark transition-all flex-1 flex items-center justify-center gap-3 shadow-lg hover:shadow-berry-rich/30">{t.next} <ChevronRight size={20} /></button>) : (<button onClick={handleSubmitOrder} className="px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl font-bold hover:shadow-xl transition-all flex-1 flex items-center justify-center gap-3 shadow-green-200"><CheckCircle size={20} /> {t.submitOrder}</button>)}</div></div></div>
       )}
 
       {/* Sidebar & Main Content */}
       <aside className={`fixed md:static inset-y-0 left-0 w-72 bg-gradient-to-b from-berry-rich to-berry-dark text-white z-30 transform transition-transform duration-500 shadow-2xl flex flex-col h-full ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-        {/* ... Sidebar content unchanged ... */}
         <div className="p-8 flex flex-col items-start gap-4"><div className="flex flex-col gap-2"><img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/logoooo.webp" alt="Berryly Belle" className="h-28 w-auto object-contain self-start drop-shadow-lg brightness-0 invert" /><h1 className="text-3xl font-serif font-bold text-white tracking-wide mt-2">Berryly <span className="text-brand-gold italic">Belle</span></h1></div><button className="absolute top-6 right-6 md:hidden text-white/70 hover:text-white" onClick={() => setSidebarOpen(false)}><X size={24} /></button></div>
-        <div className="px-4 py-2 flex-1 overflow-y-auto"><div className="mb-8 p-5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10"><p className="text-xs text-brand-gold uppercase tracking-widest mb-1 font-medium">{t.welcome}</p><p className="font-serif font-bold text-lg text-white truncate">{user.name}</p></div><nav className="space-y-2"><NavItem id="orders" icon={ShoppingBag} label={t.myOrders} /><NavItem id="transactions" icon={CreditCard} label={t.transactions} /><NavItem id="profile" icon={UserIcon} label={t.profile} /><NavItem id="settings" icon={Settings} label={t.settings} /><NavItem id="find-partner" icon={Search} label={t.findPartner} /><NavItem id="ai-stylist" icon={Wand2} label={t.aiStylist} /><NavItem id="chat" icon={MessageSquare} label={t.consultations} /></nav></div>
+        <div className="px-4 py-2 flex-1 overflow-y-auto"><div className="mb-8 p-5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10"><p className="text-xs text-brand-gold uppercase tracking-widest mb-1 font-medium">{t.welcome}</p><p className="font-serif font-bold text-lg text-white truncate">{user.name}</p></div>
+            <nav className="space-y-2">
+                <NavItem id="orders" icon={ShoppingBag} label={t.myOrders} badgeCount={actionRequiredOrdersCount} />
+                <NavItem id="transactions" icon={CreditCard} label={t.transactions} />
+                <NavItem id="profile" icon={UserIcon} label={t.profile} />
+                <NavItem id="settings" icon={Settings} label={t.settings} />
+                <NavItem id="find-partner" icon={Search} label={t.findPartner} />
+                <NavItem id="ai-stylist" icon={Wand2} label={t.aiStylist} />
+                <NavItem id="chat" icon={MessageSquare} label={t.consultations} badgeCount={unreadChatsCount} />
+            </nav>
+        </div>
         <div className="p-4 mt-auto">
             <button onClick={onLogout} className="w-full flex items-center gap-3 px-6 py-4 text-red-200 hover:bg-white/10 hover:text-red-100 rounded-xl transition-colors font-medium"><LogOut size={20} /><span>{t.signOut}</span></button>
-            <p className="text-[10px] text-white/30 text-center mt-4">v1.0.0 (Build 20250523)</p>
+            <p className="text-[10px] text-white/30 text-center mt-4">v1.2.0 (Build 20250525)</p>
         </div>
       </aside>
 
       <main className="flex-1 overflow-y-auto h-full bg-transparent">
         <header className="bg-white/80 backdrop-blur-md border-b border-stone-200 p-4 md:hidden flex items-center justify-between sticky top-0 z-10 shadow-sm"><h1 className="font-serif font-bold text-lg text-berry-rich">{t.dashboard}</h1><button onClick={() => setSidebarOpen(true)} className="p-2 bg-stone-100 rounded-lg text-berry-rich"><Menu size={24} /></button></header>
-        <div className="p-6 md:p-12 max-w-6xl mx-auto">
-          {/* ... Rest of the components remain same ... */}
+        <div className="p-6 md:p-12 max-w-6xl mx-auto pb-24">
+          
           {activeTab === 'find-partner' && (
              <div className="space-y-8 animate-fade-in-up">
               {!selectedMerchant ? (
@@ -1266,7 +1316,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
                       <div className="grid md:grid-cols-3 gap-8">
                         {merchants.map(merchant => (
                           <div key={merchant.id} className="bg-white rounded-[2rem] shadow-sm border border-stone-100 overflow-hidden hover:shadow-2xl transition-all duration-300 group hover:-translate-y-2 relative">
-                            {/* Merchant Card Content */}
                             <div className="h-48 bg-stone-200 overflow-hidden flex items-center justify-center bg-berry-rich/5">
                                 {merchant.photoUrl ? (<img src={merchant.photoUrl} alt={merchant.brandName || merchant.name} className="w-full h-full object-cover" />) : (<img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/logoooo.webp" alt={merchant.brandName || merchant.name} className="w-32 h-32 object-contain drop-shadow-md" />)}
                             </div>
@@ -1317,7 +1366,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
                       <h3 className="text-2xl font-serif font-bold text-berry-rich mb-8 flex items-center gap-3">{t.catalog} <div className="h-[1px] flex-1 bg-stone-100"></div></h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                          {(selectedMerchant as any).catalog && (selectedMerchant as any).catalog.length > 0 ? ((selectedMerchant as any).catalog.map((item: CatalogItem) => {
-                             // Use first image if available, else fallback to imageUrl
                              const displayImage = item.images && item.images.length > 0 ? item.images[0] : item.imageUrl;
                              return (
                                 <div key={item.id} className="rounded-[2rem] overflow-hidden shadow-sm border border-stone-100 flex flex-col h-full bg-white hover:shadow-xl transition-shadow duration-300 group">
@@ -1365,19 +1413,48 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
             </div>
           )}
           
-          {/* ... Rest of tabs (Orders, Transactions, etc.) ... */}
           {activeTab === 'orders' && (
             <div className="space-y-8 animate-fade-in-up">
               <h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.activeOrders}</h2>
-              {myOrders.length === 0 ? (<div className="text-center py-20 bg-white rounded-[2rem] border border-stone-100"><ShoppingBag size={48} className="mx-auto text-stone-300 mb-4" /><p className="text-stone-500">Belum ada pesanan. Mulai cari mitra!</p></div>) : (
+              
+              {/* Search & Filter Toolbar */}
+              <div className="bg-white p-4 rounded-2xl shadow-sm border border-stone-100 flex flex-col md:flex-row gap-4 mb-6">
+                    <div className="flex-1 relative">
+                        <Search className="absolute left-4 top-3.5 text-stone-400" size={20} />
+                        <input 
+                            type="text" 
+                            placeholder="Cari ID, Desain, atau Mitra..." 
+                            className="w-full pl-12 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20"
+                            value={orderSearchTerm}
+                            onChange={(e) => setOrderSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <div className="w-full md:w-48">
+                        <select 
+                            className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20"
+                            value={orderStatusFilter}
+                            onChange={(e) => setOrderStatusFilter(e.target.value)}
+                        >
+                            <option value="All">Semua Status</option>
+                            <option value="Consultation">Konsultasi</option>
+                            <option value="Design">Desain</option>
+                            <option value="Production">Produksi</option>
+                            <option value="Finishing">Finishing</option>
+                            <option value="Shipped">Dikirim</option>
+                            <option value="Completed">Selesai</option>
+                            <option value="Cancelled">Dibatalkan</option>
+                        </select>
+                    </div>
+                </div>
+
+              {filteredOrders.length === 0 ? (<div className="text-center py-20 bg-white rounded-[2rem] border border-stone-100"><ShoppingBag size={48} className="mx-auto text-stone-300 mb-4" /><p className="text-stone-500">Belum ada pesanan yang cocok.</p></div>) : (
                 <div className="grid gap-6">
-                    {myOrders.map((order) => (
+                    {filteredOrders.map((order) => (
                     <div key={order.id} className="bg-white p-6 rounded-[2rem] shadow-sm border border-stone-100 flex flex-col md:flex-row gap-8 items-center hover:shadow-xl transition-all duration-300 hover:border-brand-gold/30 group cursor-pointer" onClick={() => setSelectedOrder(order)}>
                         <div className="w-32 h-32 bg-stone-100 rounded-2xl overflow-hidden flex-shrink-0 shadow-inner">{order.imageUrl ? (<img src={order.imageUrl} alt={order.designName} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />) : (<div className="w-full h-full flex items-center justify-center text-stone-400">{t.noImage}</div>)}</div>
                         <div className="flex-1 w-full text-center md:text-left">
                         <div className="flex justify-between items-start mb-3"><div><h3 className="text-2xl font-serif font-bold text-berry-rich">{order.designName}</h3><p className="text-stone-500 font-medium mt-1">oleh {order.merchantName}</p></div><span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide border ${order.status === OrderStatus.PRODUCTION ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : (order.status === OrderStatus.COMPLETED ? 'bg-green-50 text-green-700 border-green-200' : (order.status === OrderStatus.COMPLAINT ? 'bg-red-50 text-red-700 border-red-200' : (order.status === 'Cancelled' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-blue-50 text-blue-700 border-blue-200')))}`}>{order.status}</span></div>
                         
-                        {/* New Stepper in Card View */}
                         <div className="mt-4 mb-2">
                             {renderProgressBar(order.status)}
                         </div>
@@ -1397,7 +1474,6 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
             </div>
           )}
           
-          {/* Other content omitted for brevity... */}
           {activeTab === 'transactions' && (
             <div className="space-y-8 animate-fade-in-up">
                 <div className="flex items-center justify-between mb-8">
@@ -1405,15 +1481,22 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
                 </div>
 
                 {/* Filter Toolbar */}
-                <div className="bg-white p-4 rounded-2xl shadow-sm border border-stone-100 flex flex-wrap items-end gap-4 mb-6">
-                    <div className="flex items-center gap-2 text-berry-rich font-bold border-r border-stone-200 pr-4 mr-2">
-                        <Filter size={20} /> Filter
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-stone-100 flex flex-col md:flex-row flex-wrap items-end gap-4 mb-6">
+                    <div className="w-full md:flex-1 relative order-first md:order-none mb-2 md:mb-0">
+                        <Search className="absolute left-4 top-3.5 text-stone-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Cari ID atau Deskripsi..." 
+                            className="w-full pl-10 pr-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20"
+                            value={transSearchTerm}
+                            onChange={(e) => setTransSearchTerm(e.target.value)}
+                        />
                     </div>
                     
-                    <div>
+                    <div className="w-full md:w-auto">
                         <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Status</label>
                         <select 
-                            className="p-2.5 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
+                            className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
                             value={transFilters.status}
                             onChange={(e) => setTransFilters({...transFilters, status: e.target.value})}
                         >
@@ -1424,34 +1507,28 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
                         </select>
                     </div>
 
-                    <div>
-                        <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Tanggal Mulai</label>
-                        <div className="relative">
-                            <input 
-                                type="date" 
-                                className="p-2.5 pl-9 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
-                                value={transFilters.startDate}
-                                onChange={(e) => setTransFilters({...transFilters, startDate: e.target.value})}
-                            />
-                            <Calendar size={14} className="absolute left-3 top-3 text-stone-400" />
-                        </div>
+                    <div className="w-1/2 md:w-auto">
+                        <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Mulai</label>
+                        <input 
+                            type="date" 
+                            className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
+                            value={transFilters.startDate}
+                            onChange={(e) => setTransFilters({...transFilters, startDate: e.target.value})}
+                        />
                     </div>
 
-                    <div>
-                        <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Tanggal Akhir</label>
-                        <div className="relative">
-                            <input 
-                                type="date" 
-                                className="p-2.5 pl-9 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
-                                value={transFilters.endDate}
-                                onChange={(e) => setTransFilters({...transFilters, endDate: e.target.value})}
-                            />
-                            <Calendar size={14} className="absolute left-3 top-3 text-stone-400" />
-                        </div>
+                    <div className="w-1/2 md:w-auto">
+                        <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Akhir</label>
+                        <input 
+                            type="date" 
+                            className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
+                            value={transFilters.endDate}
+                            onChange={(e) => setTransFilters({...transFilters, endDate: e.target.value})}
+                        />
                     </div>
 
                     <button 
-                        onClick={() => setTransFilters({ status: 'All', startDate: '', endDate: '' })}
+                        onClick={() => { setTransFilters({ status: 'All', startDate: '', endDate: '' }); setTransSearchTerm(''); }}
                         className="ml-auto px-4 py-2.5 text-sm font-bold text-stone-500 hover:text-berry-rich hover:bg-stone-50 rounded-lg transition-colors"
                     >
                         Reset
@@ -1466,7 +1543,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
                     </div>
                 ) : (
                     <div className="bg-white rounded-[2rem] shadow-sm border border-stone-100 overflow-hidden">
-                        <table className="w-full text-left">
+                        {/* Desktop Table */}
+                        <table className="w-full text-left hidden md:table">
                             <thead className="bg-stone-50/80 border-b border-stone-200">
                                 <tr>
                                     <th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">Tanggal</th>
@@ -1496,7 +1574,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
                                                 tr.status === 'Success' ? 'bg-green-100 text-green-700 border-green-200' : 
                                                 (tr.status === 'Pending' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-red-100 text-red-700 border-red-200')
                                             }`}>
-                                                {tr.status}
+                                                {tr.status === 'Success' ? 'Berhasil' : (tr.status === 'Pending' ? 'Menunggu' : 'Gagal')}
                                             </span>
                                         </td>
                                         <td className="p-6 text-right font-serif font-bold text-berry-rich text-lg">
@@ -1509,15 +1587,334 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ user, onLo
                                 ))}
                             </tbody>
                         </table>
+
+                        {/* Mobile Card View */}
+                        <div className="md:hidden">
+                            {filteredTransactions.map(tr => (
+                                <div 
+                                    key={tr.id} 
+                                    onClick={() => setSelectedTransaction(tr)}
+                                    className="p-5 border-b border-stone-100 active:bg-stone-50"
+                                >
+                                    <div className="flex justify-between mb-1">
+                                        <span className="font-bold text-stone-700 text-sm truncate w-2/3">{tr.description}</span>
+                                        <span className="font-serif font-bold text-berry-rich">Rp {tr.amount.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center mt-2">
+                                        <div className="text-xs text-stone-400">
+                                            {new Date(tr.date).toLocaleDateString()} • {new Date(tr.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                                        </div>
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                            tr.status === 'Success' ? 'bg-green-50 text-green-700 border-green-100' : 
+                                            (tr.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-100' : 'bg-red-50 text-red-700 border-red-100')
+                                        }`}>
+                                            {tr.status}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
           )}
-          {/* Profile, Settings, Chat omitted, they are largely static */}
-          {activeTab === 'profile' && (/* ... Profile Component ... */ <div className="space-y-8 animate-fade-in-up"><h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.profile}</h2><div className="grid md:grid-cols-2 gap-10"><div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-stone-100 relative overflow-hidden"><h3 className="font-serif font-bold text-2xl mb-6 text-berry-rich">{t.personalInfo}</h3><div className="flex flex-col items-center mb-8"><div className="w-24 h-24 rounded-full bg-stone-100 border-4 border-white shadow-lg overflow-hidden mb-4 relative group">{profileData.photoUrl ? (<img src={profileData.photoUrl} alt="Profile" className="w-full h-full object-cover" />) : (<div className="w-full h-full flex items-center justify-center text-stone-300"><UserIcon size={40} /></div>)}{isUploadingProfile && (<div className="absolute inset-0 bg-black/50 flex items-center justify-center"><Loader2 className="animate-spin text-white" /></div>)}<label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"><Camera size={20} className="text-white" /><input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} disabled={isUploadingProfile} /></label></div><p className="text-xs text-stone-400">Klik foto untuk mengubah</p></div><div className="space-y-5"><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.fullName}</label><input type="text" className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 text-stone-800" value={profileData.name} onChange={(e) => setProfileData({...profileData, name: e.target.value})} /></div><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.email}</label><input type="email" disabled className="w-full p-4 border border-stone-200 rounded-xl bg-stone-100 text-stone-500 cursor-not-allowed" value={profileData.email} /></div><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.phone}</label><input type="tel" className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 text-stone-800" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} /></div><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.address}</label><textarea className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 text-stone-800 h-24" value={profileData.address} onChange={(e) => setProfileData({...profileData, address: e.target.value})} /></div></div></div><div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-stone-100 relative overflow-hidden group"><div className="absolute top-0 right-0 w-40 h-40 bg-berry-rich/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:bg-berry-rich/10 transition-colors duration-500"></div><h3 className="font-serif font-bold text-2xl mb-8 text-berry-rich relative z-10">{t.bodyMeasurements}</h3><div className="grid grid-cols-2 gap-5 relative z-10">{Object.entries(measurements).map(([key, value]) => (<div key={key} className="bg-stone-50 p-4 rounded-2xl border border-stone-100 hover:border-brand-gold/30 transition-colors"><label className="block text-[10px] text-stone-500 uppercase tracking-wider mb-1 font-bold">{MEASUREMENT_LABELS[key as keyof BodyMeasurements] || key}</label><div className="flex items-end gap-1"><input type="number" value={value} onChange={(e) => setMeasurements({...measurements, [key]: parseFloat(e.target.value) || 0})} className="bg-transparent font-serif font-bold text-2xl w-full focus:outline-none border-b border-transparent focus:border-brand-gold text-berry-rich" /><span className="text-xs text-stone-400 mb-1">cm</span></div></div>))}</div><div className="mt-8 pt-8 border-t border-stone-100"><h4 className="font-serif font-bold text-lg text-berry-rich mb-4">{t.uploadPhoto}</h4><div className="relative group overflow-hidden rounded-xl">{profileData.bodyFitPhotoUrl ? (<div className="relative w-full h-48 rounded-xl overflow-hidden border border-stone-200"><img src={profileData.bodyFitPhotoUrl} alt="Body Fit" className="w-full h-full object-cover" /><div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-4"><a href={profileData.bodyFitPhotoUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-white rounded-full text-stone-700 hover:text-berry-rich transition-colors"><Eye size={20} /></a><label className="p-2 bg-white rounded-full text-stone-700 hover:text-brand-gold cursor-pointer transition-colors"><Upload size={20} /><input type="file" className="hidden" accept="image/*" onChange={handleBodyFitUpload} disabled={isUploadingBodyFit} /></label></div></div>) : (<label className={`w-full px-6 py-3 bg-stone-50 border border-stone-200 rounded-xl font-bold hover:bg-white hover:border-brand-gold transition-all shadow-sm flex items-center justify-center gap-2 text-stone-600 cursor-pointer ${isUploadingBodyFit ? 'opacity-50 pointer-events-none' : ''}`}>{isUploadingBodyFit ? <Loader2 className="animate-spin" size={20} /> : <Upload size={20} />}<span>{isUploadingBodyFit ? 'Mengunggah...' : t.chooseFile}</span><input type="file" className="hidden" accept="image/*" onChange={handleBodyFitUpload} disabled={isUploadingBodyFit} /></label>)}</div></div><button onClick={handleSaveProfile} className="w-full mt-8 py-4 bg-gradient-to-r from-berry-rich to-berry-dark text-white rounded-xl hover:shadow-xl transition-all relative z-10 font-bold">{t.saveProfile}</button></div></div></div>)}
-          {activeTab === 'settings' && (/* ... Settings ... */ <div className="max-w-3xl mx-auto space-y-8 animate-fade-in-up"><h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.accountSettings}</h2><div className="bg-white p-8 rounded-[2rem] border border-stone-100 shadow-sm"><h3 className="text-xl font-serif font-bold text-berry-rich mb-6 flex items-center gap-2"><Lock size={20} /> {t.security}</h3><form onSubmit={handleUpdateSettings} className="space-y-6"><div className="p-4 bg-stone-50 rounded-xl border border-stone-200"><h4 className="font-bold text-stone-700 mb-4">{t.changePassword}</h4><div className="space-y-4"><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.newPassword}</label><input type="password" className="w-full p-4 border border-stone-200 rounded-xl bg-white" placeholder="Min. 6 karakter" value={settingsForm.newPassword} onChange={(e) => setSettingsForm({...settingsForm, newPassword: e.target.value})} /></div><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.confirmNewPassword}</label><input type="password" className="w-full p-4 border border-stone-200 rounded-xl bg-white" placeholder="Konfirmasi kata sandi" value={settingsForm.confirmPassword} onChange={(e) => setSettingsForm({...settingsForm, confirmPassword: e.target.value})} /></div></div></div><div className="p-4 bg-stone-50 rounded-xl border border-stone-200"><h4 className="font-bold text-stone-700 mb-4">Update Email</h4><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.email}</label><input type="email" className="w-full p-4 border border-stone-200 rounded-xl bg-white" value={settingsForm.newEmail} onChange={(e) => setSettingsForm({...settingsForm, newEmail: e.target.value})} /><p className="text-xs text-orange-500 mt-2 flex items-center gap-1"><Bell size={12} /> Catatan: Mengubah email mengharuskan Anda login ulang.</p></div></div><div className="flex justify-end pt-4"><button type="submit" disabled={settingsLoading} className="px-8 py-4 bg-gradient-to-r from-berry-rich to-berry-dark text-white rounded-xl font-bold hover:shadow-xl transition-all shadow-lg flex items-center gap-2 disabled:opacity-70">{settingsLoading ? 'Menyimpan...' : <><Save size={18} /> {t.saveSettings}</>}</button></div></form></div></div>)}
-          {activeTab === 'chat' && (/* ... Chat ... */ <div className="grid md:grid-cols-3 h-[650px] bg-white rounded-[2.5rem] shadow-xl border border-stone-100 overflow-hidden animate-fade-in-up"><div className="border-r border-stone-100 bg-stone-50/50 flex flex-col h-full overflow-hidden"><div className="p-6 border-b border-stone-100"><h3 className="font-serif font-bold text-berry-rich text-xl">{t.consultations}</h3></div><div className="flex-1 overflow-y-auto p-3">{activeConversations.map(convo => (<div key={convo.id} onClick={() => handleChatSelect(convo.id, convo.participantName)} className={`p-4 mb-2 rounded-2xl cursor-pointer transition-all ${activeChatId === convo.id ? 'bg-white shadow-md border border-stone-100' : 'hover:bg-white/50 hover:shadow-sm'}`}><div className="flex justify-between mb-1"><span className={`font-bold text-sm ${activeChatId === convo.id ? 'text-berry-rich' : 'text-stone-700'}`}>{convo.participantName}</span></div><p className="text-xs text-stone-500 truncate font-medium">Klik untuk chat</p></div>))}{activeConversations.length === 0 && (<p className="text-center p-4 text-stone-400 text-sm">Tidak ada chat aktif.</p>)}</div></div><div className="md:col-span-2 flex flex-col bg-white h-full overflow-hidden">{activeChatId ? (<><div className="p-6 border-b border-stone-100 bg-white flex items-center justify-between"><h3 className="font-serif font-bold text-berry-rich text-xl">Chat</h3></div><div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FDFBF7]">{messages.map((msg) => (<div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[75%] p-4 rounded-2xl shadow-sm relative group transition-transform hover:scale-[1.01] ${msg.isMe ? 'bg-berry-rich text-white rounded-tr-none shadow-berry-rich/20' : 'bg-white text-stone-800 rounded-tl-none border border-stone-100'}`}>{msg.attachmentUrl && (<div className="mb-3 rounded-xl overflow-hidden border border-white/20"><img src={msg.attachmentUrl} alt="Attached" className="w-full h-auto max-h-48 object-cover" /></div>)}<p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.text}</p><span className={`text-[10px] block text-right mt-1.5 opacity-70 font-medium ${msg.isMe ? 'text-pink-100' : 'text-stone-400'}`}>{msg.timestamp?.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div></div>))}</div><div className="p-6 border-t border-stone-100 bg-white"><div className="flex gap-3"><label className={`p-4 bg-stone-50 border border-stone-200 rounded-2xl cursor-pointer hover:bg-stone-100 transition-colors flex items-center justify-center ${isUploadingChat ? 'opacity-50 pointer-events-none' : ''}`}>{isUploadingChat ? <Loader2 className="animate-spin text-stone-500" size={20} /> : <Paperclip size={20} className="text-stone-500" />}<input type="file" className="hidden" accept="image/*" onChange={handleChatImageUpload} disabled={isUploadingChat} /></label><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={t.typeMessage || "Ketik pesan..."} className="flex-1 p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20 text-sm font-medium transition-all" /><button onClick={handleSendMessage} className="p-4 bg-berry-rich text-white rounded-2xl hover:bg-berry-dark transition-colors shadow-lg hover:shadow-berry-rich/30"><Send size={20} /></button></div></div></>) : (<div className="flex-1 flex items-center justify-center flex-col text-stone-300"><div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6"><MessageSquare size={32} className="opacity-50" /></div><p className="font-serif text-lg">{t.selectConversation}</p></div>)}</div></div>)}
-          {activeTab === 'ai-stylist' && (/* ... AI Stylist ... */ <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up"><div className="text-center mb-10"><h2 className="text-4xl font-serif font-bold text-berry-rich mb-3">{t.aiTitle}</h2><p className="text-stone-500">{t.aiDesc}</p></div><div className="grid md:grid-cols-2 gap-10"><div className="bg-white p-8 rounded-[2rem] border border-stone-100 shadow-sm space-y-6"><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.occasion}</label><select className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 outline-none focus:ring-2 focus:ring-brand-gold/20" value={aiPrompt.occasion} onChange={(e) => setAiPrompt({...aiPrompt, occasion: e.target.value})}><option value="">{t.occasionPlaceholder}</option><option value="Wedding Guest">{t.weddingGuest}</option><option value="Casual Date">{t.casualDate}</option><option value="Office Formal">{t.officeFormal}</option><option value="Graduation">{t.graduation}</option></select></div><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.stylePref}</label><input type="text" className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 outline-none focus:ring-2 focus:ring-brand-gold/20" placeholder={t.stylePlaceholder} value={aiPrompt.preference} onChange={(e) => setAiPrompt({...aiPrompt, preference: e.target.value})} /></div><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.bodyType}</label><select className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 outline-none focus:ring-2 focus:ring-brand-gold/20" value={aiPrompt.bodyType} onChange={(e) => setAiPrompt({...aiPrompt, bodyType: e.target.value})}><option value="Standard">{t.standard}</option><option value="Pear Shaped">{t.pearShaped}</option><option value="Hourglass">{t.hourglass}</option><option value="Athletic">{t.athletic}</option><option value="Petite">{t.petite}</option></select></div><button onClick={handleAiConsultation} disabled={loadingAi} className="w-full py-4 bg-berry-rich text-white rounded-xl font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70">{loadingAi ? (<><Loader2 className="animate-spin" size={20} /> {t.analyze}</>) : (<><Wand2 size={20} /> {t.generate}</>)}</button></div><div className="bg-gradient-to-br from-brand-gold/5 to-berry-rich/5 p-8 rounded-[2rem] border border-stone-200 relative overflow-hidden flex flex-col justify-center min-h-[400px]">{aiRecommendation ? (<div className="animate-fade-in text-center"><div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-md mx-auto mb-6"><Sparkles size={32} className="text-brand-gold" /></div><h3 className="font-serif font-bold text-xl text-berry-rich mb-4">Rekomendasi Kami</h3><p className="text-stone-600 leading-loose italic text-lg">"{aiRecommendation}"</p></div>) : (<div className="text-center text-stone-400"><Wand2 size={48} className="mx-auto mb-4 opacity-20" /><p>Hasil akan muncul di sini...</p></div>)}</div></div></div>)}
+
+          {activeTab === 'profile' && (
+            <div className="space-y-8 animate-fade-in-up">
+                <h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.profile}</h2>
+                <div className="grid md:grid-cols-2 gap-10">
+                    <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-stone-100 relative overflow-hidden">
+                        <h3 className="font-serif font-bold text-2xl mb-6 text-berry-rich">{t.personalInfo}</h3>
+                        <div className="flex flex-col items-center mb-8">
+                            <div className="w-24 h-24 rounded-full bg-stone-100 border-4 border-white shadow-lg overflow-hidden mb-4 relative group">
+                                {profileData.photoUrl ? (<img src={profileData.photoUrl} alt="Profile" className="w-full h-full object-cover" />) : (<div className="w-full h-full flex items-center justify-center text-stone-300"><UserIcon size={40} /></div>)}
+                                {isUploadingProfile && (<div className="absolute inset-0 bg-black/50 flex items-center justify-center"><Loader2 className="animate-spin text-white" /></div>)}
+                                <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                    <Camera size={20} className="text-white" />
+                                    <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} disabled={isUploadingProfile} />
+                                </label>
+                            </div>
+                            <p className="text-xs text-stone-400">Klik foto untuk mengubah</p>
+                        </div>
+                        <div className="space-y-5">
+                            <div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.fullName}</label><input type="text" className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 text-stone-800" value={profileData.name} onChange={(e) => setProfileData({...profileData, name: e.target.value})} /></div>
+                            <div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.email}</label><input type="email" disabled className="w-full p-4 border border-stone-200 rounded-xl bg-stone-100 text-stone-500 cursor-not-allowed" value={profileData.email} /></div>
+                            <div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.phone}</label><input type="tel" className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 text-stone-800" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} /></div>
+                            <div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.address}</label><textarea className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 text-stone-800 h-24" value={profileData.address} onChange={(e) => setProfileData({...profileData, address: e.target.value})} /></div>
+                        </div>
+                    </div>
+                    <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-stone-100 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-berry-rich/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:bg-berry-rich/10 transition-colors duration-500"></div>
+                        <h3 className="font-serif font-bold text-2xl mb-8 text-berry-rich relative z-10">{t.bodyMeasurements}</h3>
+                        <div className="grid grid-cols-2 gap-5 relative z-10">{Object.entries(measurements).map(([key, value]) => (<div key={key} className="bg-stone-50 p-4 rounded-2xl border border-stone-100 hover:border-brand-gold/30 transition-colors"><label className="block text-[10px] text-stone-500 uppercase tracking-wider mb-1 font-bold">{MEASUREMENT_LABELS[key as keyof BodyMeasurements] || key}</label><div className="flex items-end gap-1"><input type="number" value={value} onChange={(e) => setMeasurements({...measurements, [key]: parseFloat(e.target.value) || 0})} className="bg-transparent font-serif font-bold text-2xl w-full focus:outline-none border-b border-transparent focus:border-brand-gold text-berry-rich" /><span className="text-xs text-stone-400 mb-1">cm</span></div></div>))}</div>
+                        <div className="mt-8 pt-8 border-t border-stone-100">
+                            <h4 className="font-serif font-bold text-lg text-berry-rich mb-4">{t.uploadPhoto}</h4>
+                            <div className="relative group overflow-hidden rounded-xl">
+                                {profileData.bodyFitPhotoUrl ? (
+                                    <div className="relative w-full h-48 rounded-xl overflow-hidden border border-stone-200">
+                                        <img src={profileData.bodyFitPhotoUrl} alt="Body Fit" className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-4">
+                                            <a href={profileData.bodyFitPhotoUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-white rounded-full text-stone-700 hover:text-berry-rich transition-colors"><Eye size={20} /></a>
+                                            <label className="p-2 bg-white rounded-full text-stone-700 hover:text-brand-gold cursor-pointer transition-colors"><Upload size={20} /><input type="file" className="hidden" accept="image/*" onChange={handleBodyFitUpload} disabled={isUploadingBodyFit} /></label>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <label className={`w-full px-6 py-3 bg-stone-50 border border-stone-200 rounded-xl font-bold hover:bg-white hover:border-brand-gold transition-all shadow-sm flex items-center justify-center gap-2 text-stone-600 cursor-pointer ${isUploadingBodyFit ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        {isUploadingBodyFit ? <Loader2 className="animate-spin" size={20} /> : <Upload size={20} />}
+                                        <span>{isUploadingBodyFit ? 'Mengunggah...' : t.chooseFile}</span>
+                                        <input type="file" className="hidden" accept="image/*" onChange={handleBodyFitUpload} disabled={isUploadingBodyFit} />
+                                    </label>
+                                )}
+                            </div>
+                        </div>
+                        <button onClick={handleSaveProfile} className="w-full mt-8 py-4 bg-gradient-to-r from-berry-rich to-berry-dark text-white rounded-xl hover:shadow-xl transition-all relative z-10 font-bold">{t.saveProfile}</button>
+                    </div>
+                </div>
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="max-w-3xl mx-auto space-y-8 animate-fade-in-up">
+                <h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.accountSettings}</h2>
+                <div className="bg-white p-8 rounded-[2rem] border border-stone-100 shadow-sm">
+                    <h3 className="text-xl font-serif font-bold text-berry-rich mb-6 flex items-center gap-2"><Lock size={20} /> {t.security}</h3>
+                    <form onSubmit={handleUpdateSettings} className="space-y-6">
+                        <div className="p-4 bg-stone-50 rounded-xl border border-stone-200">
+                            <h4 className="font-bold text-stone-700 mb-4">{t.changePassword}</h4>
+                            <div className="space-y-4">
+                                <div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.newPassword}</label><input type="password" className="w-full p-4 border border-stone-200 rounded-xl bg-white" placeholder="Min. 6 karakter" value={settingsForm.newPassword} onChange={(e) => setSettingsForm({...settingsForm, newPassword: e.target.value})} /></div>
+                                <div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.confirmNewPassword}</label><input type="password" className="w-full p-4 border border-stone-200 rounded-xl bg-white" placeholder="Konfirmasi kata sandi" value={settingsForm.confirmPassword} onChange={(e) => setSettingsForm({...settingsForm, confirmPassword: e.target.value})} /></div>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-stone-50 rounded-xl border border-stone-200">
+                            <h4 className="font-bold text-stone-700 mb-4">Update Email</h4>
+                            <div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.email}</label><input type="email" className="w-full p-4 border border-stone-200 rounded-xl bg-white" value={settingsForm.newEmail} onChange={(e) => setSettingsForm({...settingsForm, newEmail: e.target.value})} /><p className="text-xs text-orange-500 mt-2 flex items-center gap-1"><Bell size={12} /> Catatan: Mengubah email mengharuskan Anda login ulang.</p></div>
+                        </div>
+                        <div className="flex justify-end pt-4"><button type="submit" disabled={settingsLoading} className="px-8 py-4 bg-gradient-to-r from-berry-rich to-berry-dark text-white rounded-xl font-bold hover:shadow-xl transition-all shadow-lg flex items-center gap-2 disabled:opacity-70">{settingsLoading ? 'Menyimpan...' : <><Save size={18} /> {t.saveSettings}</>}</button></div>
+                    </form>
+                </div>
+            </div>
+          )}
+
+          {activeTab === 'ai-stylist' && (
+            <div className="space-y-8 animate-fade-in-up">
+                <div className="text-center mb-10">
+                    <h2 className="text-4xl font-serif font-bold text-berry-rich mb-3 flex items-center justify-center gap-3">
+                        <Wand2 size={32} className="text-brand-gold" />
+                        {t.aiTitle}
+                    </h2>
+                    <p className="text-stone-500 max-w-xl mx-auto">{t.aiDesc}</p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-8 items-start">
+                    {/* Input Panel */}
+                    <div className="bg-white p-8 rounded-[2.5rem] border border-stone-100 shadow-xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-berry-rich/5 rounded-full blur-[50px] -translate-y-1/2 translate-x-1/2"></div>
+                        
+                        <div className="space-y-6 relative z-10">
+                            <div>
+                                <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                    <Calendar size={14} className="text-brand-gold" /> {t.occasion}
+                                </label>
+                                <select className="w-full p-4 border border-stone-200 rounded-2xl bg-stone-50 outline-none focus:ring-2 focus:ring-berry-rich/20 focus:border-berry-rich transition-all appearance-none cursor-pointer hover:bg-stone-100" value={aiPrompt.occasion} onChange={(e) => setAiPrompt({...aiPrompt, occasion: e.target.value})}>
+                                    <option value="">{t.occasionPlaceholder}</option>
+                                    <option value="Wedding Guest">{t.weddingGuest}</option>
+                                    <option value="Casual Date">{t.casualDate}</option>
+                                    <option value="Office Formal">{t.officeFormal}</option>
+                                    <option value="Graduation">{t.graduation}</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                    <Palette size={14} className="text-brand-gold" /> {t.stylePref}
+                                </label>
+                                <input 
+                                    type="text" 
+                                    className="w-full p-4 border border-stone-200 rounded-2xl bg-stone-50 outline-none focus:ring-2 focus:ring-berry-rich/20 focus:border-berry-rich transition-all" 
+                                    placeholder={t.stylePlaceholder} 
+                                    value={aiPrompt.preference} 
+                                    onChange={(e) => setAiPrompt({...aiPrompt, preference: e.target.value})} 
+                                />
+                                {/* Quick Tags */}
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                    {STYLE_TAGS.map(tag => (
+                                        <button 
+                                            key={tag}
+                                            onClick={() => setAiPrompt(prev => ({...prev, preference: tag}))}
+                                            className="px-3 py-1 bg-stone-100 hover:bg-berry-rich hover:text-white rounded-full text-[10px] font-bold text-stone-500 transition-colors border border-stone-200"
+                                        >
+                                            {tag}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                    <Shirt size={14} className="text-brand-gold" /> {t.bodyType}
+                                </label>
+                                <select className="w-full p-4 border border-stone-200 rounded-2xl bg-stone-50 outline-none focus:ring-2 focus:ring-berry-rich/20 focus:border-berry-rich transition-all appearance-none cursor-pointer hover:bg-stone-100" value={aiPrompt.bodyType} onChange={(e) => setAiPrompt({...aiPrompt, bodyType: e.target.value})}>
+                                    <option value="Standard">{t.standard}</option>
+                                    <option value="Pear Shaped">{t.pearShaped}</option>
+                                    <option value="Hourglass">{t.hourglass}</option>
+                                    <option value="Athletic">{t.athletic}</option>
+                                    <option value="Petite">{t.petite}</option>
+                                </select>
+                            </div>
+
+                            <button 
+                                onClick={handleAiConsultation} 
+                                disabled={loadingAi || !aiPrompt.occasion || !aiPrompt.preference}
+                                className="w-full py-4 bg-gradient-to-r from-berry-rich to-berry-dark text-white rounded-2xl font-bold hover:shadow-lg hover:shadow-berry-rich/30 transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed group"
+                            >
+                                {loadingAi ? (
+                                    <><Loader2 className="animate-spin" size={20} /> {t.analyze}</>
+                                ) : (
+                                    <><Zap size={20} className="group-hover:fill-current" /> {t.generate}</>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Result Panel */}
+                    <div className="relative min-h-[450px]">
+                        <div className="absolute inset-0 bg-gradient-to-br from-brand-gold/10 to-berry-rich/10 rounded-[2.5rem] transform rotate-3 scale-95 opacity-50 blur-xl"></div>
+                        <div className="bg-white/80 backdrop-blur-md p-8 rounded-[2.5rem] border border-white shadow-2xl relative h-full flex flex-col">
+                            {aiRecommendation ? (
+                                <div className="animate-fade-in flex flex-col h-full">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className="w-12 h-12 bg-berry-rich/10 rounded-full flex items-center justify-center text-berry-rich">
+                                            <Sparkles size={24} />
+                                        </div>
+                                        <button onClick={handleCopyAdvice} className="p-2 text-stone-400 hover:text-brand-gold transition-colors" title="Copy Text">
+                                            {copiedText === aiRecommendation ? <Check size={20} /> : <Copy size={20} />}
+                                        </button>
+                                    </div>
+                                    <h3 className="font-serif font-bold text-2xl text-berry-rich mb-4">Rekomendasi Kami</h3>
+                                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                                        <p className="text-stone-700 leading-loose text-lg font-light italic border-l-4 border-brand-gold pl-6">
+                                            "{aiRecommendation}"
+                                        </p>
+                                    </div>
+                                    <div className="mt-6 pt-6 border-t border-stone-200/50 text-center">
+                                        <p className="text-xs text-stone-400 uppercase tracking-widest font-bold">Powered by Gemini AI</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full text-center p-6 opacity-60">
+                                    <div className="w-24 h-24 bg-stone-100 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                                        <Shirt size={48} className="text-stone-300" />
+                                    </div>
+                                    <h4 className="font-serif text-xl text-stone-400 mb-2">Siap tampil memukau?</h4>
+                                    <p className="text-stone-400 text-sm">Isi detail di sebelah kiri dan biarkan AI kami memilihkan gaya terbaik untuk Anda.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+          )}
+          
+          {activeTab === 'chat' && (
+            <div className="grid md:grid-cols-3 h-[80vh] bg-white rounded-[2.5rem] shadow-xl border border-stone-100 overflow-hidden animate-fade-in-up">
+              {/* Chat Sidebar */}
+              <div className="border-r border-stone-100 bg-stone-50/50 flex flex-col h-full overflow-hidden">
+                <div className="p-6 border-b border-stone-100">
+                  <h3 className="font-serif font-bold text-berry-rich text-xl">{t.consultations}</h3>
+                </div>
+                <div className="flex-1 overflow-y-auto p-3">
+                  {activeConversations.map(convo => (
+                    <div 
+                      key={convo.id} 
+                      onClick={() => handleChatSelect(convo.id, convo.participantName, convo.avatarUrl)} 
+                      className={`p-4 mb-2 rounded-2xl cursor-pointer transition-all flex items-center gap-4 ${activeChatId === convo.id ? 'bg-white shadow-md border border-stone-100' : 'hover:bg-white/50 hover:shadow-sm'}`}
+                    >
+                      <div className="w-12 h-12 rounded-full bg-stone-200 overflow-hidden flex-shrink-0 border border-stone-100">
+                          {convo.avatarUrl ? (
+                              <img src={convo.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                              <div className="w-full h-full flex items-center justify-center text-stone-400 bg-stone-100 font-bold">
+                                  {convo.participantName.charAt(0)}
+                              </div>
+                          )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between mb-1">
+                          <span className={`font-bold text-sm truncate ${activeChatId === convo.id ? 'text-berry-rich' : 'text-stone-700'}`}>{convo.participantName}</span>
+                          {convo.unreadCount > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Baru</span>}
+                        </div>
+                        <p className="text-xs text-stone-500 truncate font-medium">{convo.lastMessage || 'Klik untuk chat'}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {activeConversations.length === 0 && (<p className="text-center p-4 text-stone-400 text-sm">Tidak ada chat aktif.</p>)}
+                </div>
+              </div>
+
+              {/* Chat Window */}
+              <div className="md:col-span-2 flex flex-col bg-white h-full overflow-hidden">
+                {activeChatId ? (
+                  <>
+                    <div className="p-4 border-b border-stone-100 bg-white flex items-center gap-4 shadow-sm z-10">
+                        <div className="w-10 h-10 rounded-full bg-stone-100 overflow-hidden border border-stone-200">
+                            {currentChatParticipant?.avatarUrl ? (
+                                <img src={currentChatParticipant.avatarUrl} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-stone-400 font-bold">
+                                    {currentChatParticipant?.name?.charAt(0) || "?"}
+                                </div>
+                            )}
+                        </div>
+                        <div>
+                            <h3 className="font-serif font-bold text-berry-rich text-lg">{currentChatParticipant?.name || "Chat"}</h3>
+                            <p className="text-[10px] text-green-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-green-500"></span> Online
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FDFBF7]">
+                      {messages.map((msg) => (
+                        <div key={msg.id} className={`flex gap-3 ${msg.isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                            {/* Avatar for Message */}
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-stone-200 flex-shrink-0 mt-1 border border-stone-100">
+                                {msg.isMe ? (
+                                    user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-stone-500">Me</div>
+                                ) : (
+                                    currentChatParticipant?.avatarUrl ? <img src={currentChatParticipant.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-stone-500">{msg.senderName.charAt(0)}</div>
+                                )}
+                            </div>
+
+                            <div className={`max-w-[70%] p-4 rounded-2xl shadow-sm relative group transition-transform hover:scale-[1.01] ${msg.isMe ? 'bg-berry-rich text-white rounded-tr-none shadow-berry-rich/20' : 'bg-white text-stone-800 rounded-tl-none border border-stone-100'}`}>
+                                {msg.attachmentUrl && (<div className="mb-3 rounded-xl overflow-hidden border border-white/20"><img src={msg.attachmentUrl} alt="Attached" className="w-full h-auto max-h-48 object-cover" /></div>)}
+                                <p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.text}</p>
+                                <span className={`text-[10px] block text-right mt-1.5 opacity-70 font-medium ${msg.isMe ? 'text-pink-100' : 'text-stone-400'}`}>{msg.timestamp?.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="p-4 md:p-6 border-t border-stone-100 bg-white">
+                      <div className="flex gap-3">
+                        <label className={`p-4 bg-stone-50 border border-stone-200 rounded-2xl cursor-pointer hover:bg-stone-100 transition-colors flex items-center justify-center ${isUploadingChat ? 'opacity-50 pointer-events-none' : ''}`}>
+                          {isUploadingChat ? <Loader2 className="animate-spin text-stone-500" size={20} /> : <Paperclip size={20} className="text-stone-500" />}
+                          <input type="file" className="hidden" accept="image/*" onChange={handleChatImageUpload} disabled={isUploadingChat} />
+                        </label>
+                        <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={t.typeMessage || "Ketik pesan..."} className="flex-1 p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20 text-sm font-medium transition-all" />
+                        <button onClick={handleSendMessage} className="p-4 bg-berry-rich text-white rounded-2xl hover:bg-berry-dark transition-colors shadow-lg hover:shadow-berry-rich/30"><Send size={20} /></button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center flex-col text-stone-300">
+                    <div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6"><MessageSquare size={32} className="opacity-50" /></div>
+                    <p className="font-serif text-lg">{t.selectConversation}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

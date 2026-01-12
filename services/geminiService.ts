@@ -49,7 +49,7 @@ export const generateStyleAdvice = async (
       contents: prompt,
     });
 
-    return response.text || "I couldn't generate a recommendation at this moment.";
+    return response.text || (language === 'id' ? "Saya tidak dapat membuat rekomendasi saat ini." : "I couldn't generate a recommendation at this moment.");
   } catch (error) {
     console.error("Gemini API Error:", error);
     return language === 'id' 

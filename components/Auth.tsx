@@ -131,9 +131,9 @@ export const Auth: React.FC<AuthProps> = ({ initialView, initialRole, onLogin, o
         const userProfile = await getUserProfile(firebaseUser.uid);
         
         if (userProfile) {
-          // Check Role Match - STRICT CHECK
+          // Check Role Match - STRICT CHECK against the TOGGLE state
           if (userProfile.role !== role) {
-             await signOut(auth);
+             await signOut(auth); // Sign out immediately to prevent access
              
              // Specific error message requested by user
              const errorMsg = "User yang anda salah silahkan masuk ke customer atau mitra";
@@ -141,9 +141,10 @@ export const Auth: React.FC<AuthProps> = ({ initialView, initialRole, onLogin, o
              showToast('error', 'Login Gagal', errorMsg);
              setError(errorMsg);
              setIsLoading(false);
-             return; 
+             return; // Stop execution, do not call onLogin
           }
 
+          // If role matches, proceed to login
           onLogin(userProfile);
         } else {
            // Profile missing

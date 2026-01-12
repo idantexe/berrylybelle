@@ -262,20 +262,52 @@ export const subscribeToChatList = (userId: string, callback: (chats: ChatConver
   // SIMPLE QUERY: No orderBy here to avoid index requirements
   const q = query(chatsRef, where("participants", "array-contains", userId));
 
-  return onSnapshot(q, (snapshot) => {
-    const chats = snapshot.docs.map(doc => {
-      const data = doc.data();
+  return onSnapshot(q, async (snapshot) => {
+    // Process chats
+    const chatsPromises = snapshot.docs.map(async (docSnap) => {
+      const data = docSnap.data();
       const otherUserId = data.participants.find((id: string) => id !== userId);
-      const otherName = data.participantNames ? data.participantNames[otherUserId] : "Chat Partner";
+      
+      let otherName = "Chat Partner";
+      let otherAvatar = "";
+
+      if (otherUserId) {
+          // Try to get name from participantNames first (fast)
+          if (data.participantNames && data.participantNames[otherUserId]) {
+              otherName = data.participantNames[otherUserId];
+          }
+          
+          // Fetch user profile to get latest avatar (slow but necessary for avatar)
+          try {
+              const userDoc = await getDoc(doc(db, "users", otherUserId));
+              if (userDoc.exists()) {
+                  const userData = userDoc.data();
+                  otherAvatar = userData.photoUrl || "";
+                  // Also update name if not in chat doc
+                  if (!data.participantNames) {
+                      otherName = userData.brandName || userData.name;
+                  }
+              }
+          } catch (e) {
+              console.warn("Failed to fetch chat partner details", e);
+          }
+      }
+
+      // Calculate pseudo-unread status: If the last sender was NOT me, it's 'unread'
+      const isLastMessageFromOther = data.lastSenderId && data.lastSenderId !== userId;
 
       return {
-        id: doc.id,
+        id: docSnap.id,
         participantName: otherName,
         lastMessage: data.lastMessage || "",
         timestamp: data.updatedAt?.toDate() || new Date(),
-        unreadCount: 0 
+        unreadCount: isLastMessageFromOther ? 1 : 0,
+        avatarUrl: otherAvatar,
+        participantId: otherUserId
       } as ChatConversation;
     });
+
+    const chats = await Promise.all(chatsPromises);
 
     // Client-side sorting (Newest first)
     chats.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
@@ -320,8 +352,9 @@ export const sendMessage = async (
     
     const chatRef = doc(db, "chats", chatId);
     const updateData: any = {
-        lastMessage: message.text || (message.attachmentUrl ? "Sent an image" : ""),
-        updatedAt: new Date()
+        lastMessage: message.text || (message.attachmentUrl ? "Mengirim gambar" : ""),
+        updatedAt: new Date(),
+        lastSenderId: message.senderId // Save who sent it to calculate unread status
     };
 
     if (participants && participants.length > 0) {

@@ -125,7 +125,8 @@ export interface ChatConversation {
   lastMessage: string;
   timestamp: Date;
   unreadCount: number;
-  avatarUrl?: string;
+  avatarUrl?: string; // ADDED: Avatar URL for the chat partner
+  participantId?: string; // ADDED: ID of the chat partner
 }
 
 export interface Transaction {

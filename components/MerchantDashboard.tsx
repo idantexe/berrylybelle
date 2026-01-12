@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ShoppingBag, MessageSquare, LogOut, 
   Menu, X, TrendingUp, Users, CreditCard, Star, Send,
   Image as ImageIcon, Plus, Trash2, Save, Ruler, MapPin, Truck,
-  CheckCircle, Scissors, Package, ArrowRight, AlertCircle, Edit, UploadCloud, User as UserIcon, Settings, Lock, Bell, Paperclip, Camera, Upload, Loader2, FileText, RefreshCw, AlertTriangle, Calendar, Filter, Download, ChevronRight
+  CheckCircle, Scissors, Package, ArrowRight, AlertCircle, Edit, UploadCloud, User as UserIcon, Settings, Lock, Bell, Paperclip, Camera, Upload, Loader2, FileText, RefreshCw, AlertTriangle, Calendar, Filter, Download, ChevronRight, Search
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -138,6 +138,11 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
     message: string;
   } | null>(null);
 
+  // Search & Filter States
+  const [orderSearchTerm, setOrderSearchTerm] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>('All');
+  const [transSearchTerm, setTransSearchTerm] = useState('');
+
   // Transaction Filters & Details
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [transFilters, setTransFilters] = useState({
@@ -181,7 +186,6 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
   // Catalog State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  // CHANGED: newItem state now handles images array
   const [newItem, setNewItem] = useState<{ title: string; images: string[]; description: string; price: number }>({ 
       title: '', 
       images: [], 
@@ -194,7 +198,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeConversations, setActiveConversations] = useState<ChatConversation[]>([]);
-  const [currentChatParticipant, setCurrentChatParticipant] = useState<{id: string, name: string} | null>(null);
+  const [currentChatParticipant, setCurrentChatParticipant] = useState<{id: string, name: string, avatarUrl?: string} | null>(null);
 
   // 1. Fetch Orders Live & Sync Selected Order
   useEffect(() => {
@@ -321,6 +325,17 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
     setChartData(formattedData);
   }, [orders]);
 
+  // --- FILTERED ORDERS LOGIC ---
+  const filteredOrders = orders.filter(order => {
+      const matchStatus = orderStatusFilter === 'All' || order.status === orderStatusFilter;
+      const searchLower = orderSearchTerm.toLowerCase();
+      const matchSearch = 
+          order.id.toLowerCase().includes(searchLower) ||
+          order.customerName?.toLowerCase().includes(searchLower) ||
+          order.designName.toLowerCase().includes(searchLower);
+      return matchStatus && matchSearch;
+  });
+
   // --- FILTERED TRANSACTIONS LOGIC ---
   const filteredTransactions = transactions.filter(t => {
       const matchStatus = transFilters.status === 'All' || t.status === transFilters.status;
@@ -336,7 +351,13 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
           matchDate = matchDate && new Date(t.date) < end;
       }
 
-      return matchStatus && matchDate;
+      // Add Text Search Logic
+      const searchLower = transSearchTerm.toLowerCase();
+      const matchSearch = 
+          t.id.toLowerCase().includes(searchLower) ||
+          t.description.toLowerCase().includes(searchLower);
+
+      return matchStatus && matchDate && matchSearch;
   });
 
 
@@ -595,20 +616,26 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
     }
   };
 
-  const handleChatSelect = (chatId: string, participantName: string) => {
+  const handleChatSelect = (chatId: string, participantName: string, avatarUrl?: string) => {
       setActiveChatId(chatId);
       
-      // Parse other user ID from ChatID (format: sorted(uid1, uid2))
+      // Parse other user ID from ChatID
       const parts = chatId.split('_');
       const otherId = parts.find(id => id !== user.id);
       
       if (otherId) {
           setCurrentChatParticipant({
               id: otherId,
-              name: participantName
+              name: participantName,
+              avatarUrl: avatarUrl
           });
       }
   };
+
+  // --- BADGE CALCULATIONS ---
+  const newOrdersCount = orders.filter(o => o.status === OrderStatus.CONSULTATION).length;
+  // Calculate unread chats based on the simple 'lastSenderId' logic in firebase.ts
+  const unreadChatsCount = activeConversations.reduce((acc, chat) => acc + (chat.unreadCount || 0), 0);
 
   // ... (Render methods same as before) ...
   const StatCard = ({ icon: Icon, label, value, color }: any) => (
@@ -640,6 +667,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
   };
 
   const renderWorkflowActions = (order: Order) => {
+    // ... (same as before)
     if (order.status === OrderStatus.CANCELLED) {
       return (<div className="bg-red-50/50 p-6 rounded-3xl border border-red-200"><div className="flex items-center gap-3 mb-3"><AlertCircle className="text-red-600" size={24} /><p className="font-bold text-red-900 text-lg">{t.orderCancelled}</p></div></div>);
     }
@@ -709,9 +737,34 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
     }
   };
 
+  const NavItem = ({ id, icon: Icon, label, badgeCount }: { id: string; icon: any; label: string; badgeCount?: number }) => (
+    <button
+      onClick={() => { setActiveTab(id as any); setSidebarOpen(false); }}
+      className={`w-full flex items-center gap-4 px-6 py-4 transition-all duration-300 relative group capitalize ${
+        activeTab === id ? 'text-white' : 'text-purple-200 hover:text-white hover:bg-white/5'
+      }`}
+    >
+      {activeTab === id && (
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-gold shadow-[0_0_10px_#D4AF37]"></div>
+      )}
+      {activeTab === id && (
+         <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent"></div>
+      )}
+      <div className="relative">
+        <Icon size={20} className={activeTab === id ? 'text-brand-gold' : ''} />
+        {badgeCount && badgeCount > 0 ? (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-bounce">
+                {badgeCount > 9 ? '9+' : badgeCount}
+            </span>
+        ) : null}
+      </div>
+      <span className="font-medium tracking-wide">{label}</span>
+    </button>
+  );
+
   return (
     <div className="h-screen bg-[#FDFBF7] flex relative overflow-hidden">
-      {/* ... Background and Toast omitted for brevity, same as before ... */}
+      {/* ... Background and Toast omitted ... */}
       <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-brand-gold/5 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
       <div className="fixed bottom-0 left-0 w-[500px] h-[500px] bg-berry-rich/5 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
       {notification && (
@@ -731,6 +784,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
         </div>
       )}
 
+      {/* ... Modals (Transaction, Catalog, OrderDetails) kept implicitly ... */}
       {/* Detail Transaction Modal */}
       {selectedTransaction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
@@ -748,7 +802,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
                     <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${selectedTransaction.status === 'Success' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
                         <CheckCircle size={32} />
                     </div>
-                    <h3 className="text-2xl font-serif font-bold text-berry-rich">Pembayaran {selectedTransaction.status}</h3>
+                    <h3 className="text-2xl font-serif font-bold text-berry-rich">Pembayaran {selectedTransaction.status === 'Success' ? 'Berhasil' : (selectedTransaction.status === 'Pending' ? 'Menunggu' : 'Gagal')}</h3>
                     <p className="text-stone-500 text-sm mt-1">{new Date(selectedTransaction.date).toLocaleString()}</p>
                     
                     <div className="my-8">
@@ -784,7 +838,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
         </div>
       )}
 
-      {/* Catalog Modal - UPDATED FOR MULTIPLE IMAGES */}
+      {/* Catalog Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-berry-rich/20 backdrop-blur-md p-4 animate-fade-in">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-white max-h-[90vh] flex flex-col">
@@ -801,7 +855,6 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
               <div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.basePrice}</label><input type="number" className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50" placeholder="e.g. 500000" value={newItem.price} onChange={(e) => setNewItem({ ...newItem, price: Number(e.target.value) })} /></div>
               <div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Deskripsi</label><textarea className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 h-24" placeholder="Jelaskan bahan, gaya, dll..." value={newItem.description} onChange={(e) => setNewItem({ ...newItem, description: e.target.value })} /></div>
               
-              {/* IMAGE UPLOAD SECTION */}
               <div>
                   <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.imageUrl} (Galeri)</label>
                   <div className="grid grid-cols-3 gap-3 mb-3">
@@ -822,7 +875,6 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
                           <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                       </label>
                   </div>
-                  <p className="text-xs text-stone-400 italic">Unggah beberapa foto untuk memperlihatkan sudut berbeda.</p>
               </div>
 
               <button onClick={handleSaveCatalogItem} disabled={isUploadingCatalog} className="w-full py-4 bg-berry-rich text-white rounded-xl font-bold hover:shadow-lg transition-all">{editingId ? t.updateProject : t.saveProject}</button>
@@ -831,13 +883,12 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
         </div>
       )}
 
-      {/* Order Details Modal (Unchanged content except for structure) */}
+      {/* Order Details Modal */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-berry-rich/20 backdrop-blur-md p-4 animate-fade-in">
            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col border border-white">
               <div className="p-6 border-b border-stone-100 bg-stone-50/50 flex justify-between items-center"><div><h3 className="text-xl font-serif font-bold text-berry-rich">{t.viewOrderDetails}</h3><p className="text-xs text-stone-500 mt-1 font-mono">ID: {selectedOrder.id}</p></div><div className="flex items-center gap-2">{selectedOrder.status !== OrderStatus.CANCELLED && selectedOrder.status !== OrderStatus.COMPLETED && selectedOrder.status !== OrderStatus.SHIPPED && (<button onClick={() => handleCancelOrder(selectedOrder.id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors mr-2 border border-red-100">{t.cancelOrder}</button>)}<button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-stone-100 rounded-full text-stone-400 hover:text-berry-rich transition-colors"><X size={24} /></button></div></div>
               
-              {/* UPDATED PROGRESS BAR (Stepper) */}
               <div className="bg-white px-8 py-6 border-b border-stone-100">
                 {renderProgressBar(selectedOrder.status)}
               </div>
@@ -848,25 +899,143 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
         </div>
       )}
 
-      {/* Sidebar (Unchanged) */}
+      {/* Sidebar (With Badges) */}
       <aside className={`fixed md:static inset-y-0 left-0 w-72 bg-gradient-to-b from-berry-rich to-berry-dark text-white z-30 flex flex-col h-full transform transition-transform duration-500 shadow-2xl ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="p-8 flex items-center justify-between"><div className="flex flex-col gap-2"><img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/logoooo.webp" alt="Berryly Belle" className="h-28 w-auto object-contain self-start drop-shadow-lg brightness-0 invert" /><span className="font-serif font-bold text-white text-3xl tracking-wide mt-2">Berryly <span className="text-brand-gold italic">Belle</span></span></div><button className="md:hidden text-white/70 hover:text-white" onClick={() => setSidebarOpen(false)}><X size={24} /></button></div>
-        <div className="px-4 py-6 flex-1 overflow-y-auto"><nav className="space-y-2">{['overview', 'orders', 'transactions', 'catalog', 'reviews', 'chat', 'profile', 'settings'].map((tab) => (<button key={tab} onClick={() => { setActiveTab(tab as any); setSidebarOpen(false); }} className={`w-full flex items-center gap-4 px-6 py-4 transition-all duration-300 relative group capitalize ${activeTab === tab ? 'text-white' : 'text-purple-200 hover:text-white hover:bg-white/5'}`}>{activeTab === tab && (<div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-gold shadow-[0_0_10px_#D4AF37]"></div>)}{activeTab === tab && (<div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent"></div>)}{tab === 'overview' && <LayoutDashboard size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}{tab === 'orders' && <ShoppingBag size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}{tab === 'transactions' && <CreditCard size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}{tab === 'catalog' && <ImageIcon size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}{tab === 'reviews' && <Star size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}{tab === 'chat' && <MessageSquare size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}{tab === 'profile' && <UserIcon size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}{tab === 'settings' && <Settings size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}<span className="font-medium tracking-wide">{t[tab as keyof typeof t] || tab}</span></button>))}</nav></div>
+        <div className="px-4 py-6 flex-1 overflow-y-auto">
+            <nav className="space-y-2">
+                <NavItem id="overview" icon={LayoutDashboard} label={t.dashboard} />
+                <NavItem id="orders" icon={ShoppingBag} label={t.orders} badgeCount={newOrdersCount} />
+                <NavItem id="transactions" icon={CreditCard} label={t.transactions} />
+                <NavItem id="catalog" icon={ImageIcon} label={t.catalog} />
+                <NavItem id="reviews" icon={Star} label={t.reviews} />
+                <NavItem id="chat" icon={MessageSquare} label={t.chats} badgeCount={unreadChatsCount} />
+                <NavItem id="profile" icon={UserIcon} label={t.profile} />
+                <NavItem id="settings" icon={Settings} label={t.settings} />
+            </nav>
+        </div>
         <div className="p-4 mt-auto">
             <button onClick={onLogout} className="w-full flex items-center gap-3 px-6 py-4 text-red-200 hover:bg-white/10 hover:text-red-100 rounded-xl transition-colors font-medium"><LogOut size={20} /><span>{t.signOut}</span></button>
-            <p className="text-[10px] text-white/30 text-center mt-4">v1.0.0 (Build 20250523)</p>
+            <p className="text-[10px] text-white/30 text-center mt-4">v1.2.0 (Build 20250525)</p>
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto h-full bg-transparent">
+      <main className="flex-1 overflow-y-auto h-full bg-transparent relative">
         <header className="bg-white/80 backdrop-blur-md border-b border-stone-200 p-4 md:hidden flex items-center justify-between sticky top-0 z-10 shadow-sm"><h1 className="font-serif font-bold text-lg text-berry-rich">{t.merchantPortal}</h1><button onClick={() => setSidebarOpen(true)} className="p-2 bg-stone-100 rounded-lg text-berry-rich"><Menu size={24} /></button></header>
-        <div className="p-6 md:p-12 max-w-7xl mx-auto">
+        <div className="p-4 md:p-12 max-w-7xl mx-auto pb-24">
+          
           {/* Dashboard Content */}
           {activeTab === 'overview' && (<div className="space-y-10 animate-fade-in-up"><div><h2 className="text-4xl font-serif font-bold text-berry-rich mb-2">{t.hello}, <span className="text-stone-700">{user.brandName || user.name}</span></h2><p className="text-stone-500 text-lg font-light">{t.happening}</p></div><div className="grid md:grid-cols-3 gap-8"><StatCard icon={ShoppingBag} label={t.activeOrders} value={orders.length.toString()} color="bg-pink-100 text-pink-600" /><StatCard icon={TrendingUp} label={t.totalRevenue} value={`Rp ${transactions.reduce((acc, t) => acc + t.amount, 0).toLocaleString()}`} color="bg-green-100 text-green-600" /><StatCard icon={Users} label={t.newCustomers} value="0" color="bg-blue-100 text-blue-600" /></div><div className="grid md:grid-cols-3 gap-8"><div className="md:col-span-2 bg-white p-8 rounded-[2rem] shadow-sm border border-stone-100"><h3 className="font-serif font-bold text-xl mb-8 text-berry-rich">{t.orderStats}</h3><div className="h-72"><ResponsiveContainer width="100%" height="100%"><BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF'}} /><YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF'}} /><Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}} cursor={{fill: '#FDFBF7'}} /><Bar dataKey="orders" fill="#8B1E5B" radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer></div></div><div className="bg-white p-8 rounded-[2rem] shadow-sm border border-stone-100 flex flex-col"><h3 className="font-serif font-bold text-xl mb-6 text-berry-rich">{t.recentRequests}</h3><div className="space-y-4 flex-1">{orders.length === 0 ? (<p className="text-stone-400 text-sm text-center py-4">Tidak ada pesanan aktif.</p>) : (orders.slice(0, 4).map(order => (<div key={order.id} onClick={() => setSelectedOrder(order)} className="flex items-center gap-4 p-3 hover:bg-stone-50 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-stone-100 group"><img src={order.imageUrl || 'https://via.placeholder.com/50'} alt="" className="w-14 h-14 rounded-xl object-cover shadow-sm group-hover:scale-105 transition-transform" /><div className="flex-1 min-w-0"><p className="font-bold text-sm truncate text-berry-rich">{order.designName}</p><p className="text-xs text-stone-500 truncate mt-0.5">{order.customerName}</p></div><span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${getStatusColor(order.status)}`}>{order.status}</span></div>)))}</div><button onClick={() => setActiveTab('orders')} className="w-full mt-6 py-3 border border-stone-200 rounded-xl text-sm font-bold text-stone-600 hover:bg-stone-50 transition-colors">{t.viewAll}</button></div></div></div>)}
-          {activeTab === 'orders' && (<div className="space-y-8 animate-fade-in-up"><h2 className="text-4xl font-serif font-bold text-berry-rich mb-8">{t.orderMgmt}</h2><div className="bg-white rounded-[2rem] shadow-sm border border-stone-100 overflow-hidden"><table className="w-full text-left"><thead className="bg-stone-50/80 border-b border-stone-200"><tr><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">ID Pesanan</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">{t.orders}</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">{t.customer}</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">Status</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs text-right">Aksi</th></tr></thead><tbody>{orders.map(order => (<tr key={order.id} className="border-b border-stone-100 hover:bg-stone-50 cursor-pointer transition-colors" onClick={() => setSelectedOrder(order)}><td className="p-6 text-stone-500 font-mono text-xs">{order.id}</td><td className="p-6 font-bold text-berry-rich flex items-center gap-4"><img src={order.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover shadow-sm" />{order.designName}</td><td className="p-6 text-stone-600 font-medium">{order.customerName}</td><td className="p-6"><span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>{order.status}</span></td><td className="p-6 text-right"><button className="text-berry-rich font-bold text-xs uppercase tracking-wide hover:text-brand-gold transition-colors">{t.manage}</button></td></tr>))}{orders.length === 0 && (<tr><td colSpan={5} className="p-10 text-center text-stone-400">Belum ada pesanan.</td></tr>)}</tbody></table></div></div>)}
+          
+          {activeTab === 'orders' && (
+            <div className="space-y-8 animate-fade-in-up">
+                <h2 className="text-4xl font-serif font-bold text-berry-rich mb-8">{t.orderMgmt}</h2>
+                
+                {/* Search & Filter Toolbar */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-stone-100 flex flex-col md:flex-row gap-4 mb-6">
+                    <div className="flex-1 relative">
+                        <Search className="absolute left-4 top-3.5 text-stone-400" size={20} />
+                        <input 
+                            type="text" 
+                            placeholder="Cari ID, Desain, atau Pelanggan..." 
+                            className="w-full pl-12 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20"
+                            value={orderSearchTerm}
+                            onChange={(e) => setOrderSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <div className="w-full md:w-48">
+                        <select 
+                            className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20"
+                            value={orderStatusFilter}
+                            onChange={(e) => setOrderStatusFilter(e.target.value)}
+                        >
+                            <option value="All">Semua Status</option>
+                            <option value="Consultation">Konsultasi</option>
+                            <option value="Design">Desain</option>
+                            <option value="Production">Produksi</option>
+                            <option value="Finishing">Finishing</option>
+                            <option value="Shipped">Dikirim</option>
+                            <option value="Completed">Selesai</option>
+                            <option value="Cancelled">Dibatalkan</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-[2rem] shadow-sm border border-stone-100 overflow-hidden">
+                    {/* Desktop Table View */}
+                    <table className="w-full text-left hidden md:table">
+                        <thead className="bg-stone-50/80 border-b border-stone-200">
+                            <tr>
+                                <th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">ID Pesanan</th>
+                                <th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">{t.orders}</th>
+                                <th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">{t.customer}</th>
+                                <th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">Status</th>
+                                <th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredOrders.map(order => (
+                                <tr 
+                                    key={order.id} 
+                                    className={`border-b border-stone-100 cursor-pointer transition-colors ${
+                                        order.status === OrderStatus.CONSULTATION 
+                                        ? 'bg-brand-gold/10 hover:bg-brand-gold/20' // Highlight new orders
+                                        : 'hover:bg-stone-50'
+                                    }`}
+                                    onClick={() => setSelectedOrder(order)}
+                                >
+                                    <td className="p-6 text-stone-500 font-mono text-xs">{order.id.substring(0, 8)}...</td>
+                                    <td className="p-6 font-bold text-berry-rich flex items-center gap-4">
+                                        <img src={order.imageUrl || 'https://via.placeholder.com/50'} alt="" className="w-10 h-10 rounded-lg object-cover shadow-sm" />
+                                        {order.designName}
+                                    </td>
+                                    <td className="p-6 text-stone-600 font-medium">{order.customerName}</td>
+                                    <td className="p-6">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>{order.status}</span>
+                                    </td>
+                                    <td className="p-6 text-right">
+                                        <button className="text-berry-rich font-bold text-xs uppercase tracking-wide hover:text-brand-gold transition-colors">{t.manage}</button>
+                                    </td>
+                                </tr>
+                            ))}
+                            {filteredOrders.length === 0 && (<tr><td colSpan={5} className="p-10 text-center text-stone-400">Tidak ada pesanan yang cocok.</td></tr>)}
+                        </tbody>
+                    </table>
+
+                    {/* Mobile Card View */}
+                    <div className="md:hidden p-4 space-y-4">
+                        {filteredOrders.map(order => (
+                            <div 
+                                key={order.id} 
+                                onClick={() => setSelectedOrder(order)}
+                                className={`p-4 rounded-2xl border transition-all shadow-sm ${
+                                    order.status === OrderStatus.CONSULTATION 
+                                    ? 'bg-brand-gold/5 border-brand-gold/30' 
+                                    : 'bg-white border-stone-100'
+                                }`}
+                            >
+                                <div className="flex gap-4">
+                                    <img src={order.imageUrl || 'https://via.placeholder.com/80'} className="w-20 h-20 rounded-xl object-cover" alt="" />
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-start">
+                                            <h4 className="font-bold text-berry-rich text-lg truncate">{order.designName}</h4>
+                                            <span className={`text-[10px] px-2 py-1 rounded-full border ${getStatusColor(order.status)}`}>{order.status}</span>
+                                        </div>
+                                        <p className="text-stone-500 text-sm mt-1">{order.customerName}</p>
+                                        <p className="text-stone-400 text-xs mt-2 font-mono">ID: {order.id.substring(0, 8)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        {filteredOrders.length === 0 && (<p className="text-center text-stone-400 py-10">Tidak ada pesanan.</p>)}
+                    </div>
+                </div>
+            </div>
+          )}
           
           {activeTab === 'catalog' && (
             <div className="space-y-8 animate-fade-in-up">
+                {/* ... (Catalog implementation same as before) ... */}
                 <div className="flex justify-between items-center mb-8">
                     <div>
                         <h2 className="text-4xl font-serif font-bold text-berry-rich mb-2">{t.catalog}</h2>
@@ -920,66 +1089,66 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
             </div>
           )}
           
-          {/* Other Tabs (transactions, reviews, etc.) unchanged */}
           {activeTab === 'transactions' && (
             <div className="space-y-8 animate-fade-in-up">
                 <h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.transactions}</h2>
                 
-                {/* Filter Toolbar */}
-                <div className="bg-white p-4 rounded-2xl shadow-sm border border-stone-100 flex flex-wrap items-end gap-4 mb-6">
-                    <div className="flex items-center gap-2 text-berry-rich font-bold border-r border-stone-200 pr-4 mr-2">
-                        <Filter size={20} /> Filter
+                {/* Filter & Search Toolbar */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-stone-100 flex flex-col md:flex-row flex-wrap items-end gap-4 mb-6">
+                    <div className="w-full md:flex-1 relative order-first md:order-none mb-2 md:mb-0">
+                        <Search className="absolute left-4 top-3.5 text-stone-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Cari ID atau Deskripsi..." 
+                            className="w-full pl-10 pr-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20"
+                            value={transSearchTerm}
+                            onChange={(e) => setTransSearchTerm(e.target.value)}
+                        />
                     </div>
-                    
-                    <div>
+
+                    <div className="w-full md:w-auto">
                         <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Status</label>
                         <select 
-                            className="p-2.5 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
+                            className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
                             value={transFilters.status}
                             onChange={(e) => setTransFilters({...transFilters, status: e.target.value})}
                         >
-                            <option value="All">Semua Status</option>
+                            <option value="All">Semua</option>
                             <option value="Success">Success</option>
                             <option value="Pending">Pending</option>
                             <option value="Failed">Failed</option>
                         </select>
                     </div>
 
-                    <div>
-                        <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Tanggal Mulai</label>
-                        <div className="relative">
-                            <input 
-                                type="date" 
-                                className="p-2.5 pl-9 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
-                                value={transFilters.startDate}
-                                onChange={(e) => setTransFilters({...transFilters, startDate: e.target.value})}
-                            />
-                            <Calendar size={14} className="absolute left-3 top-3 text-stone-400" />
-                        </div>
+                    <div className="w-1/2 md:w-auto">
+                        <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Mulai</label>
+                        <input 
+                            type="date" 
+                            className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
+                            value={transFilters.startDate}
+                            onChange={(e) => setTransFilters({...transFilters, startDate: e.target.value})}
+                        />
                     </div>
 
-                    <div>
-                        <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Tanggal Akhir</label>
-                        <div className="relative">
-                            <input 
-                                type="date" 
-                                className="p-2.5 pl-9 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
-                                value={transFilters.endDate}
-                                onChange={(e) => setTransFilters({...transFilters, endDate: e.target.value})}
-                            />
-                            <Calendar size={14} className="absolute left-3 top-3 text-stone-400" />
-                        </div>
+                    <div className="w-1/2 md:w-auto">
+                        <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Akhir</label>
+                        <input 
+                            type="date" 
+                            className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
+                            value={transFilters.endDate}
+                            onChange={(e) => setTransFilters({...transFilters, endDate: e.target.value})}
+                        />
                     </div>
 
                     <button 
-                        onClick={() => setTransFilters({ status: 'All', startDate: '', endDate: '' })}
-                        className="ml-auto px-4 py-2.5 text-sm font-bold text-stone-500 hover:text-berry-rich hover:bg-stone-50 rounded-lg transition-colors"
+                        onClick={() => { setTransFilters({ status: 'All', startDate: '', endDate: '' }); setTransSearchTerm(''); }}
+                        className="w-full md:w-auto px-4 py-2.5 text-sm font-bold text-stone-500 hover:text-berry-rich hover:bg-stone-50 rounded-lg transition-colors"
                     >
                         Reset
                     </button>
                 </div>
 
-                {/* Table */}
+                {/* Table / List */}
                 {filteredTransactions.length === 0 ? (
                     <div className="bg-white rounded-[2rem] shadow-sm border border-stone-100 overflow-hidden text-center py-20">
                         <CreditCard size={48} className="mx-auto text-stone-300 mb-4" />
@@ -987,7 +1156,8 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
                     </div>
                 ) : (
                     <div className="bg-white rounded-[2rem] shadow-sm border border-stone-100 overflow-hidden">
-                        <table className="w-full text-left">
+                        {/* Desktop View */}
+                        <table className="w-full text-left hidden md:table">
                             <thead className="bg-stone-50/80 border-b border-stone-200">
                                 <tr>
                                     <th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">Tanggal</th>
@@ -1030,6 +1200,33 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
                                 ))}
                             </tbody>
                         </table>
+
+                        {/* Mobile Card View */}
+                        <div className="md:hidden">
+                            {filteredTransactions.map(tr => (
+                                <div 
+                                    key={tr.id} 
+                                    onClick={() => setSelectedTransaction(tr)}
+                                    className="p-5 border-b border-stone-100 active:bg-stone-50"
+                                >
+                                    <div className="flex justify-between mb-1">
+                                        <span className="font-bold text-stone-700 text-sm truncate w-2/3">{tr.description}</span>
+                                        <span className="font-serif font-bold text-berry-rich">Rp {tr.amount.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center mt-2">
+                                        <div className="text-xs text-stone-400">
+                                            {new Date(tr.date).toLocaleDateString()} • {new Date(tr.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                                        </div>
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                            tr.status === 'Success' ? 'bg-green-50 text-green-700 border-green-100' : 
+                                            (tr.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-100' : 'bg-red-50 text-red-700 border-red-100')
+                                        }`}>
+                                            {tr.status}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
@@ -1038,6 +1235,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
           {/* Reviews Tab */}
           {activeTab === 'reviews' && (
             <div className="space-y-8 animate-fade-in-up">
+              {/* ... (Reviews implementation unchanged) ... */}
               <h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.reviews}</h2>
               <div className="flex gap-6 mb-8">
                   <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm flex items-center gap-4">
@@ -1092,9 +1290,108 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
             </div>
           )}
 
-          {activeTab === 'chat' && (<div className="grid md:grid-cols-3 h-[650px] bg-white rounded-[2.5rem] shadow-xl border border-stone-100 overflow-hidden animate-fade-in-up"><div className="border-r border-stone-100 bg-stone-50/50 flex flex-col h-full overflow-hidden"><div className="p-6 border-b border-stone-100"><h3 className="font-serif font-bold text-berry-rich text-xl">{t.consultations}</h3></div><div className="flex-1 overflow-y-auto p-3">{activeConversations.map(convo => (<div key={convo.id} onClick={() => handleChatSelect(convo.id, convo.participantName)} className={`p-4 mb-2 rounded-2xl cursor-pointer transition-all ${activeChatId === convo.id ? 'bg-white shadow-md border border-stone-100' : 'hover:bg-white/50 hover:shadow-sm'}`}><div className="flex justify-between mb-1"><span className={`font-bold text-sm ${activeChatId === convo.id ? 'text-berry-rich' : 'text-stone-700'}`}>{convo.participantName}</span></div><p className="text-xs text-stone-500 truncate font-medium">Klik untuk chat</p></div>))}{activeConversations.length === 0 && (<p className="text-center p-4 text-stone-400 text-sm">Tidak ada chat aktif.</p>)}</div></div><div className="md:col-span-2 flex flex-col bg-white h-full overflow-hidden">{activeChatId ? (<><div className="p-6 border-b border-stone-100 bg-white flex items-center justify-between"><h3 className="font-serif font-bold text-berry-rich text-xl">Chat</h3></div><div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FDFBF7]">{messages.map((msg) => (<div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[75%] p-4 rounded-2xl shadow-sm relative group transition-transform hover:scale-[1.01] ${msg.isMe ? 'bg-berry-rich text-white rounded-tr-none shadow-berry-rich/20' : 'bg-white text-stone-800 rounded-tl-none border border-stone-100'}`}>{msg.attachmentUrl && (<div className="mb-3 rounded-xl overflow-hidden border border-white/20"><img src={msg.attachmentUrl} alt="Attached" className="w-full h-auto max-h-48 object-cover" /></div>)}<p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.text}</p><span className={`text-[10px] block text-right mt-1.5 opacity-70 font-medium ${msg.isMe ? 'text-pink-100' : 'text-stone-400'}`}>{msg.timestamp?.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div></div>))}</div><div className="p-6 border-t border-stone-100 bg-white"><div className="flex gap-3"><label className={`p-4 bg-stone-50 border border-stone-200 rounded-2xl cursor-pointer hover:bg-stone-100 transition-colors flex items-center justify-center ${isUploadingChat ? 'opacity-50 pointer-events-none' : ''}`}>{isUploadingChat ? <Loader2 className="animate-spin text-stone-500" size={20} /> : <Paperclip size={20} className="text-stone-500" />}<input type="file" className="hidden" accept="image/*" onChange={handleChatImageUpload} disabled={isUploadingChat} /></label><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={t.typeMessage || "Ketik pesan..."} className="flex-1 p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20 text-sm font-medium transition-all" /><button onClick={handleSendMessage} className="p-4 bg-berry-rich text-white rounded-2xl hover:bg-berry-dark transition-colors shadow-lg hover:shadow-berry-rich/30"><Send size={20} /></button></div></div></>) : (<div className="flex-1 flex items-center justify-center flex-col text-stone-300"><div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6"><MessageSquare size={32} className="opacity-50" /></div><p className="font-serif text-lg">{t.selectConversation}</p></div>)}</div></div>)}
+          {activeTab === 'chat' && (
+            <div className="grid md:grid-cols-3 h-[80vh] bg-white rounded-[2.5rem] shadow-xl border border-stone-100 overflow-hidden animate-fade-in-up">
+              {/* Chat Sidebar */}
+              <div className="border-r border-stone-100 bg-stone-50/50 flex flex-col h-full overflow-hidden">
+                <div className="p-6 border-b border-stone-100">
+                  <h3 className="font-serif font-bold text-berry-rich text-xl">{t.consultations}</h3>
+                </div>
+                <div className="flex-1 overflow-y-auto p-3">
+                  {activeConversations.map(convo => (
+                    <div 
+                      key={convo.id} 
+                      onClick={() => handleChatSelect(convo.id, convo.participantName, convo.avatarUrl)} 
+                      className={`p-4 mb-2 rounded-2xl cursor-pointer transition-all flex items-center gap-4 ${activeChatId === convo.id ? 'bg-white shadow-md border border-stone-100' : 'hover:bg-white/50 hover:shadow-sm'}`}
+                    >
+                      <div className="w-12 h-12 rounded-full bg-stone-200 overflow-hidden flex-shrink-0 border border-stone-100">
+                          {convo.avatarUrl ? (
+                              <img src={convo.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                              <div className="w-full h-full flex items-center justify-center text-stone-400 bg-stone-100 font-bold">
+                                  {convo.participantName.charAt(0)}
+                              </div>
+                          )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between mb-1">
+                          <span className={`font-bold text-sm truncate ${activeChatId === convo.id ? 'text-berry-rich' : 'text-stone-700'}`}>{convo.participantName}</span>
+                          {convo.unreadCount > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Baru</span>}
+                        </div>
+                        <p className="text-xs text-stone-500 truncate font-medium">{convo.lastMessage || 'Klik untuk chat'}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {activeConversations.length === 0 && (<p className="text-center p-4 text-stone-400 text-sm">Tidak ada chat aktif.</p>)}
+                </div>
+              </div>
+
+              {/* Chat Window */}
+              <div className="md:col-span-2 flex flex-col bg-white h-full overflow-hidden">
+                {activeChatId ? (
+                  <>
+                    <div className="p-4 border-b border-stone-100 bg-white flex items-center gap-4 shadow-sm z-10">
+                        <div className="w-10 h-10 rounded-full bg-stone-100 overflow-hidden border border-stone-200">
+                            {currentChatParticipant?.avatarUrl ? (
+                                <img src={currentChatParticipant.avatarUrl} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-stone-400 font-bold">
+                                    {currentChatParticipant?.name?.charAt(0) || "?"}
+                                </div>
+                            )}
+                        </div>
+                        <div>
+                            <h3 className="font-serif font-bold text-berry-rich text-lg">{currentChatParticipant?.name || "Chat"}</h3>
+                            <p className="text-[10px] text-green-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-green-500"></span> Online
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FDFBF7]">
+                      {messages.map((msg) => (
+                        <div key={msg.id} className={`flex gap-3 ${msg.isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                            {/* Avatar for Message */}
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-stone-200 flex-shrink-0 mt-1 border border-stone-100">
+                                {msg.isMe ? (
+                                    user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-stone-500">Me</div>
+                                ) : (
+                                    currentChatParticipant?.avatarUrl ? <img src={currentChatParticipant.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-stone-500">{msg.senderName.charAt(0)}</div>
+                                )}
+                            </div>
+
+                            <div className={`max-w-[70%] p-4 rounded-2xl shadow-sm relative group transition-transform hover:scale-[1.01] ${msg.isMe ? 'bg-berry-rich text-white rounded-tr-none shadow-berry-rich/20' : 'bg-white text-stone-800 rounded-tl-none border border-stone-100'}`}>
+                                {msg.attachmentUrl && (<div className="mb-3 rounded-xl overflow-hidden border border-white/20"><img src={msg.attachmentUrl} alt="Attached" className="w-full h-auto max-h-48 object-cover" /></div>)}
+                                <p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.text}</p>
+                                <span className={`text-[10px] block text-right mt-1.5 opacity-70 font-medium ${msg.isMe ? 'text-pink-100' : 'text-stone-400'}`}>{msg.timestamp?.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="p-4 md:p-6 border-t border-stone-100 bg-white">
+                      <div className="flex gap-3">
+                        <label className={`p-4 bg-stone-50 border border-stone-200 rounded-2xl cursor-pointer hover:bg-stone-100 transition-colors flex items-center justify-center ${isUploadingChat ? 'opacity-50 pointer-events-none' : ''}`}>
+                          {isUploadingChat ? <Loader2 className="animate-spin text-stone-500" size={20} /> : <Paperclip size={20} className="text-stone-500" />}
+                          <input type="file" className="hidden" accept="image/*" onChange={handleChatImageUpload} disabled={isUploadingChat} />
+                        </label>
+                        <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={t.typeMessage || "Ketik pesan..."} className="flex-1 p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20 text-sm font-medium transition-all" />
+                        <button onClick={handleSendMessage} className="p-4 bg-berry-rich text-white rounded-2xl hover:bg-berry-dark transition-colors shadow-lg hover:shadow-berry-rich/30"><Send size={20} /></button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center flex-col text-stone-300">
+                    <div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6"><MessageSquare size={32} className="opacity-50" /></div>
+                    <p className="font-serif text-lg">{t.selectConversation}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           {activeTab === 'profile' && (
              <div className="space-y-8 animate-fade-in-up">
+              {/* ... Profile implementation unchanged ... */}
               <h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.profile}</h2>
               <div className="grid md:grid-cols-2 gap-10">
                 <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-stone-100 relative overflow-hidden">

@@ -43,17 +43,25 @@ const AppContent: React.FC = () => {
           // User is signed in AND verified, fetch profile
           const profile = await getUserProfile(firebaseUser.uid);
           if (profile) {
-            // CRITICAL FIX: 
-            // If we are explicitly trying to login with a specific role (authTargetRole is set),
-            // and the profile role doesn't match, DO NOT switch to dashboard automatically.
-            // Let the Auth component handle the error display and sign out.
+            // Check if specific role was requested via navigation (e.g. Landing buttons)
             if (authTargetRole && profile.role !== authTargetRole) {
                setLoading(false);
                return;
             }
 
             setCurrentUser(profile);
-            setCurrentView('dashboard');
+            
+            // RACE CONDITION FIX:
+            // If the user is currently on the Login/Register screen, do NOT auto-redirect to Dashboard here.
+            // Why? Because Auth.tsx needs to perform its own strict Role Validation (checking the toggle state vs profile role).
+            // If Auth.tsx passes validation, it calls onLogin() which manually sets view to 'dashboard'.
+            // If we redirect here, we preempt Auth.tsx's validation, leading to the dashboard flashing 
+            // and then kicking the user out (bouncing to landing) when Auth.tsx detects the role mismatch.
+            //
+            // If currentView is 'landing' (fresh load/refresh), we DO auto-redirect.
+            if (currentView !== 'login' && currentView !== 'register') {
+                setCurrentView('dashboard');
+            }
           } else {
             // Profile doesn't exist yet (or error), maybe stay on auth or landing
             setCurrentUser(null);
