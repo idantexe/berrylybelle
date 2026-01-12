@@ -57,7 +57,7 @@ export const Auth: React.FC<AuthProps> = ({ initialView, initialRole, onLogin, o
     try {
       if (view === 'forgot-password') {
         await sendPasswordResetEmail(auth, email);
-        const msg = "Password reset email sent! Please check your inbox.";
+        const msg = "Email reset kata sandi telah dikirim! Silakan periksa kotak masuk Anda.";
         setSuccessMsg(msg);
         showToast('success', 'Email Terkirim', msg);
         setIsLoading(false);
@@ -99,38 +99,42 @@ export const Auth: React.FC<AuthProps> = ({ initialView, initialRole, onLogin, o
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
 
-        // Fetch User Profile from Firestore
+        // Fetch User Profile from Firestore to Check Role
         const userProfile = await getUserProfile(firebaseUser.uid);
         
         if (userProfile) {
           // Check Role Match - POPUP Logic here
           if (userProfile.role !== role) {
+             // Role Mismatch! Force Sign Out
              await signOut(auth);
-             const targetRole = role === UserRole.CUSTOMER ? 'Pelanggan' : 'Mitra';
-             const actualRole = userProfile.role === UserRole.CUSTOMER ? 'Pelanggan' : 'Mitra';
              
-             showToast('error', 'Salah Jenis Akun', `Akun ini terdaftar sebagai ${actualRole}, namun Anda mencoba login di halaman ${targetRole}. Silakan pindah tab di atas.`);
+             const attemptedRole = role === UserRole.CUSTOMER ? 'Pelanggan (Customer)' : 'Mitra (Merchant)';
+             const actualRole = userProfile.role === UserRole.CUSTOMER ? 'Pelanggan (Customer)' : 'Mitra (Merchant)';
+             
+             // Show Explicit Error
+             showToast('error', 'Jenis Akun Tidak Sesuai', `Akun ini terdaftar sebagai ${actualRole}, tetapi Anda mencoba masuk sebagai ${attemptedRole}. Mohon ganti tab di atas.`);
+             setError(`Akun Anda adalah ${actualRole}. Silakan pindah ke tab yang sesuai.`);
              setIsLoading(false);
-             return;
+             return; // Stop execution
           }
 
           onLogin(userProfile);
         } else {
-           setError("User profile not found. Please contact support.");
+           setError("Profil pengguna tidak ditemukan. Hubungi dukungan.");
         }
       }
     } catch (err: any) {
       console.error("Auth Error:", err);
       if (err.code === 'auth/email-already-in-use') {
-        setError("Email is already registered. Please log in.");
+        setError("Email sudah terdaftar. Silakan login.");
       } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setError("Invalid email or password.");
+        setError("Email atau kata sandi salah.");
       } else if (err.code === 'auth/weak-password') {
-        setError("Password should be at least 6 characters.");
+        setError("Kata sandi harus minimal 6 karakter.");
       } else if (err.code === 'permission-denied' || err.message.includes("Missing or insufficient permissions")) {
-        setError("Database permission denied. Please check your Firestore Security Rules.");
+        setError("Izin database ditolak. Silakan periksa Aturan Keamanan Firestore.");
       } else {
-        setError(err.message || "An error occurred. Please try again.");
+        setError(err.message || "Terjadi kesalahan. Silakan coba lagi.");
       }
     } finally {
       setIsLoading(false);
@@ -145,7 +149,7 @@ export const Auth: React.FC<AuthProps> = ({ initialView, initialRole, onLogin, o
 
   const renderDesc = () => {
     if (showVerificationSent) return "Kami telah mengirimkan link verifikasi.";
-    if (view === 'forgot-password') return 'Enter your email to receive a password reset link.';
+    if (view === 'forgot-password') return 'Masukkan email Anda untuk menerima link reset kata sandi.';
     return view === 'login' ? t.signInDesc : t.createDesc;
   };
 
@@ -290,7 +294,7 @@ export const Auth: React.FC<AuthProps> = ({ initialView, initialRole, onLogin, o
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-brand-gold/50 focus:border-transparent transition-all"
-                  placeholder="John Doe"
+                  placeholder="Nama Lengkap"
                 />
               </div>
             )}
@@ -304,7 +308,7 @@ export const Auth: React.FC<AuthProps> = ({ initialView, initialRole, onLogin, o
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-brand-gold/50 focus:border-transparent transition-all"
-                  placeholder="e.g. Berrylybelle"
+                  placeholder="Contoh: Berrylybelle"
                 />
               </div>
             )}
@@ -317,7 +321,7 @@ export const Auth: React.FC<AuthProps> = ({ initialView, initialRole, onLogin, o
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-stone-50 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-brand-gold/50 focus:border-transparent transition-all"
-                placeholder="email@example.com"
+                placeholder="email@contoh.com"
               />
             </div>
 
@@ -344,7 +348,7 @@ export const Auth: React.FC<AuthProps> = ({ initialView, initialRole, onLogin, o
                   onClick={() => { setView('forgot-password'); setError(null); setSuccessMsg(null); }}
                   className="text-xs font-bold text-stone-400 hover:text-berry-rich transition-colors"
                 >
-                  Forgot Password?
+                  Lupa Kata Sandi?
                 </button>
               </div>
             )}
@@ -357,10 +361,10 @@ export const Auth: React.FC<AuthProps> = ({ initialView, initialRole, onLogin, o
               {isLoading ? (
                 <>
                   <Loader2 className="animate-spin" size={20} />
-                  <span>Processing...</span>
+                  <span>Memproses...</span>
                 </>
               ) : (
-                view === 'login' ? t.signIn : (view === 'forgot-password' ? 'Send Reset Link' : t.createAccount)
+                view === 'login' ? t.signIn : (view === 'forgot-password' ? 'Kirim Link Reset' : t.createAccount)
               )}
             </button>
           </form>
@@ -368,7 +372,7 @@ export const Auth: React.FC<AuthProps> = ({ initialView, initialRole, onLogin, o
           <div className="mt-8 text-center text-sm text-stone-500">
             {view === 'login' 
               ? `${t.noAccount} ` 
-              : (view === 'register' ? `${t.hasAccount} ` : 'Remember your password? ')}
+              : (view === 'register' ? `${t.hasAccount} ` : 'Ingat kata sandi Anda? ')}
             
             <button 
               onClick={() => {
@@ -380,7 +384,7 @@ export const Auth: React.FC<AuthProps> = ({ initialView, initialRole, onLogin, o
             >
                {view === 'login' 
                   ? t.signUp 
-                  : (view === 'register' ? t.logIn : 'Back to Login')}
+                  : (view === 'register' ? t.logIn : 'Kembali ke Login')}
             </button>
           </div>
         </div>

@@ -114,8 +114,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                     <div className="bg-brand-gold/10 p-2.5 rounded-full text-brand-gold">
                       <Sparkles size={24} />
                     </div>
-                    <span className="font-serif font-bold text-berry-rich text-lg">New</span>
-                    <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Collection</span>
+                    <span className="font-serif font-bold text-berry-rich text-lg">Koleksi</span>
+                    <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Terbaru</span>
                  </div>
               </div>
             </div>
@@ -128,7 +128,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-16 animate-fade-in-up">
             <div className="inline-flex items-center gap-4 mb-4 px-6 py-2 rounded-full bg-brand-gold/5 border border-brand-gold/20">
-              <span className="text-brand-gold uppercase tracking-[0.2em] font-bold text-xs">Exclusive Portfolio</span>
+              <span className="text-brand-gold uppercase tracking-[0.2em] font-bold text-xs">Portofolio Eksklusif</span>
             </div>
             <h2 className="text-4xl md:text-6xl font-serif font-bold text-berry-rich mb-6">{t.ourCollection}</h2>
             <p className="max-w-3xl mx-auto text-lg text-stone-600 leading-relaxed font-light">
@@ -151,10 +151,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                   />
                    <div className="absolute inset-0 bg-gradient-to-t from-berry-rich/90 via-transparent to-transparent opacity-0 group-hover/item:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-8">
                       <div className="transform translate-y-8 group-hover/item:translate-y-0 transition-transform duration-500 ease-out">
-                        <p className="text-brand-gold font-serif text-3xl italic mb-2">Custom Fit</p>
-                        <p className="text-white/90 text-sm font-light mb-6 line-clamp-2">Exquisite detailing tailored specifically for you.</p>
+                        <p className="text-brand-gold font-serif text-3xl italic mb-2">Ukuran Pas</p>
+                        <p className="text-white/90 text-sm font-light mb-6 line-clamp-2">Detail indah yang disesuaikan khusus untuk Anda.</p>
                         <button className="bg-white/20 backdrop-blur-md border border-white/40 text-white px-6 py-3 rounded-full text-sm flex items-center gap-2 hover:bg-white hover:text-berry-rich transition-all duration-300">
-                          View Design <ArrowRight size={14} />
+                          Lihat Desain <ArrowRight size={14} />
                         </button>
                       </div>
                    </div>
@@ -223,6 +223,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           <p className="text-stone-500 text-sm">
             &copy; {new Date().getFullYear()} {t.footer}
           </p>
+          <p className="text-[10px] text-stone-300 mt-2">v1.0.0 (Build 20250523)</p>
         </div>
       </footer>
     </div>

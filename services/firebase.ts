@@ -48,8 +48,12 @@ export const getUserProfile = async (userId: string): Promise<User | null> => {
       return { id: docSnap.id, ...data } as User;
     }
     return null;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching user profile:", error);
+    // Rethrow permission errors so UI can handle them appropriately
+    if (error.code === 'permission-denied' || error.message?.includes('Missing or insufficient permissions')) {
+        throw error;
+    }
     return null;
   }
 };

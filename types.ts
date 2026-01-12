@@ -8,9 +8,10 @@ export enum UserRole {
 export interface CatalogItem {
   id: string;
   title: string;
-  imageUrl: string;
+  images: string[]; // CHANGED: Array of image URLs
+  imageUrl?: string; // Deprecated: Kept for backward compatibility with old data
   description?: string;
-  price?: number; // Added price for catalog items
+  price?: number; 
 }
 
 export interface BodyMeasurements {

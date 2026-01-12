@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ShoppingBag, MessageSquare, LogOut, 
   Menu, X, TrendingUp, Users, CreditCard, Star, Send,
   Image as ImageIcon, Plus, Trash2, Save, Ruler, MapPin, Truck,
-  CheckCircle, Scissors, Package, ArrowRight, AlertCircle, Edit, UploadCloud, User as UserIcon, Settings, Lock, Bell, Paperclip, Camera, Upload, Loader2, FileText, RefreshCw, AlertTriangle
+  CheckCircle, Scissors, Package, ArrowRight, AlertCircle, Edit, UploadCloud, User as UserIcon, Settings, Lock, Bell, Paperclip, Camera, Upload, Loader2, FileText, RefreshCw, AlertTriangle, Calendar, Filter, Download, ChevronRight
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -39,7 +39,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
     email: user.email,
     phone: user.phone || '',
     address: user.address || '',
-    bio: user.bio || 'Specializing in custom high-end dresses and kebaya since 2018.',
+    bio: user.bio || 'Spesialisasi dalam gaun dan kebaya custom sejak 2018.',
     photoUrl: user.photoUrl || '',
     // Payment Details
     bankName: user.bankDetails?.bankName || '',
@@ -59,6 +59,14 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
     title: string;
     message: string;
   } | null>(null);
+
+  // Transaction Filters & Details
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [transFilters, setTransFilters] = useState({
+      status: 'All',
+      startDate: '',
+      endDate: ''
+  });
 
   // Auto-hide notification
   useEffect(() => {
@@ -95,7 +103,13 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
   // Catalog State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newItem, setNewItem] = useState<any>({ title: '', imageUrl: '', description: '', price: 0 });
+  // CHANGED: newItem state now handles images array
+  const [newItem, setNewItem] = useState<{ title: string; images: string[]; description: string; price: number }>({ 
+      title: '', 
+      images: [], 
+      description: '', 
+      price: 0 
+  });
 
   // Chat State
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -151,7 +165,12 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
         const freshUser = await getUserProfile(user.id);
         if(freshUser) {
             if((freshUser as any).catalog) {
-                setCatalog((freshUser as any).catalog);
+                // Ensure catalog items have images array (migration)
+                const processedCatalog = (freshUser as any).catalog.map((item: any) => ({
+                    ...item,
+                    images: item.images || (item.imageUrl ? [item.imageUrl] : [])
+                }));
+                setCatalog(processedCatalog);
             }
             setProfileData(prev => ({
                 ...prev,
@@ -187,18 +206,15 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
     return () => unsubscribe();
   }, [activeChatId, user.id]);
 
-  // 7. Calculate Chart Data (Order Statistics)
+  // 7. Calculate Chart Data
   useEffect(() => {
     if (orders.length === 0) {
       setChartData([]);
       return;
     }
-
     const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const today = new Date();
     const last6Months = [];
-
-    // Initialize buckets for the last 6 months
     for (let i = 5; i >= 0; i--) {
       const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
       last6Months.push({
@@ -208,30 +224,41 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
         count: 0
       });
     }
-
-    // Process orders
     orders.forEach(order => {
-        // Exclude cancelled orders from statistics
         if (order.status !== OrderStatus.CANCELLED) {
             const orderDate = new Date(order.date);
             const oMonth = orderDate.getMonth();
             const oYear = orderDate.getFullYear();
-
-            // Find matching bucket
             const bucket = last6Months.find(b => b.monthIndex === oMonth && b.year === oYear);
             if (bucket) {
                 bucket.count++;
             }
         }
     });
-
     const formattedData = last6Months.map(b => ({
         name: b.name,
         orders: b.count
     }));
-
     setChartData(formattedData);
   }, [orders]);
+
+  // --- FILTERED TRANSACTIONS LOGIC ---
+  const filteredTransactions = transactions.filter(t => {
+      const matchStatus = transFilters.status === 'All' || t.status === transFilters.status;
+      
+      let matchDate = true;
+      if (transFilters.startDate) {
+          matchDate = matchDate && new Date(t.date) >= new Date(transFilters.startDate);
+      }
+      if (transFilters.endDate) {
+          // Add 1 day to include the end date fully
+          const end = new Date(transFilters.endDate);
+          end.setDate(end.getDate() + 1);
+          matchDate = matchDate && new Date(t.date) < end;
+      }
+
+      return matchStatus && matchDate;
+  });
 
 
   const handleSendMessage = async () => {
@@ -257,11 +284,11 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
         await sendMessage(activeChatId, {
             senderId: user.id,
             senderName: user.brandName || user.name,
-            text: 'Sent an image',
+            text: 'Mengirim gambar',
             attachmentUrl: imageUrl
         });
       } catch (error) {
-        showToast('error', 'Error', "Failed to upload image. Please try again.");
+        showToast('error', 'Error', "Gagal mengunggah gambar. Silakan coba lagi.");
       } finally {
         setIsUploadingChat(false);
       }
@@ -274,13 +301,21 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
       setIsUploadingCatalog(true);
       try {
         const imageUrl = await uploadToCloudinary(file);
-        setNewItem({ ...newItem, imageUrl });
+        // Append to existing images array
+        setNewItem(prev => ({ ...prev, images: [...prev.images, imageUrl] }));
       } catch (error) {
-        showToast('error', 'Error', "Failed to upload image.");
+        showToast('error', 'Error', "Gagal mengunggah gambar.");
       } finally {
         setIsUploadingCatalog(false);
       }
     }
+  };
+
+  const handleRemoveImage = (indexToRemove: number) => {
+      setNewItem(prev => ({
+          ...prev,
+          images: prev.images.filter((_, index) => index !== indexToRemove)
+      }));
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -291,7 +326,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
         const photoUrl = await uploadToCloudinary(file);
         setProfileData(prev => ({ ...prev, photoUrl }));
       } catch (error) {
-        showToast('error', 'Error', "Failed to upload profile photo.");
+        showToast('error', 'Error', "Gagal mengunggah foto profil.");
       } finally {
         setIsUploadingProfile(false);
       }
@@ -346,17 +381,17 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
                 return;
             }
             if (settingsForm.newPassword.length < 6) {
-                showToast('error', 'Validasi', "Password must be at least 6 characters.");
+                showToast('error', 'Validasi', "Kata sandi minimal 6 karakter.");
                 setSettingsLoading(false);
                 return;
             }
             await updateUserPassword(settingsForm.newPassword);
-            messages.push("Password updated.");
+            messages.push("Kata sandi diperbarui.");
         }
 
         if (settingsForm.newEmail !== user.email) {
             await updateUserEmail(settingsForm.newEmail);
-            messages.push("Email updated.");
+            messages.push("Email diperbarui.");
         }
         
         if (messages.length > 0) {
@@ -377,7 +412,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
   };
 
   const openAddModal = () => {
-    setNewItem({ title: '', imageUrl: '', description: '', price: 0 });
+    setNewItem({ title: '', images: [], description: '', price: 0 });
     setEditingId(null);
     setIsModalOpen(true);
   };
@@ -385,7 +420,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
   const openEditModal = (item: CatalogItem) => {
     setNewItem({
       title: item.title,
-      imageUrl: item.imageUrl,
+      images: item.images && item.images.length > 0 ? item.images : (item.imageUrl ? [item.imageUrl] : []),
       description: item.description || '',
       price: item.price || 0
     });
@@ -394,8 +429,8 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
   };
 
   const handleSaveCatalogItem = async () => {
-    if (!newItem.title || !newItem.imageUrl) {
-        showToast('error', 'Validasi', "Please provide a title and an image.");
+    if (!newItem.title || newItem.images.length === 0) {
+        showToast('error', 'Validasi', "Mohon lengkapi judul dan minimal satu gambar.");
         return;
     }
     
@@ -404,14 +439,15 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
     if (editingId) {
       updatedCatalog = updatedCatalog.map(item => 
         item.id === editingId 
-        ? { ...item, ...newItem, price: Number(newItem.price) }
+        ? { ...item, ...newItem, price: Number(newItem.price), imageUrl: newItem.images[0] }
         : item
       );
     } else {
       const item: CatalogItem = {
         id: Date.now().toString(),
         title: newItem.title,
-        imageUrl: newItem.imageUrl,
+        images: newItem.images,
+        imageUrl: newItem.images[0], // Fallback
         description: newItem.description,
         price: Number(newItem.price)
       };
@@ -421,7 +457,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
     try {
         await updateMerchantCatalog(user.id, updatedCatalog);
         setCatalog(updatedCatalog);
-        setNewItem({ title: '', imageUrl: '', description: '', price: 0 });
+        setNewItem({ title: '', images: [], description: '', price: 0 });
         setIsModalOpen(false);
         setEditingId(null);
         showToast('success', 'Sukses', "Item berhasil disimpan!");
@@ -432,7 +468,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
   };
 
   const handleDeleteItem = async (id: string) => {
-    if(window.confirm('Are you sure you want to delete this item?')) {
+    if(window.confirm('Apakah Anda yakin ingin menghapus item ini?')) {
        const updatedCatalog = catalog.filter(item => item.id !== id);
        try {
         await updateMerchantCatalog(user.id, updatedCatalog);
@@ -445,7 +481,6 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
   };
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: OrderStatus, extraData?: Partial<Order>) => {
-    // Optimistic update for UI responsiveness
     if (selectedOrder && selectedOrder.id === orderId) {
        setSelectedOrder({ ...selectedOrder, status: newStatus, ...extraData });
     }
@@ -456,7 +491,6 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
     } catch (e) {
         console.error(e);
         showToast('error', 'Gagal', "Gagal update status di database");
-        // Revert if failed (optional, but for simple app just alert)
     }
   };
 
@@ -490,18 +524,16 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
       case OrderStatus.SHIPPED: return 'bg-indigo-50 text-indigo-800 border-indigo-200';
       case OrderStatus.COMPLETED: return 'bg-green-50 text-green-800 border-green-200';
       case OrderStatus.CANCELLED: return 'bg-red-50 text-red-800 border-red-200';
-      case OrderStatus.COMPLAINT: return 'bg-red-100 text-red-800 border-red-300'; // Complaint Color
+      case OrderStatus.COMPLAINT: return 'bg-red-100 text-red-800 border-red-300';
       default: return 'bg-stone-50 text-stone-800 border-stone-200';
     }
   };
 
   const renderWorkflowActions = (order: Order) => {
-    // ... same as previous ...
     if (order.status === OrderStatus.CANCELLED) {
       return (<div className="bg-red-50/50 p-6 rounded-3xl border border-red-200"><div className="flex items-center gap-3 mb-3"><AlertCircle className="text-red-600" size={24} /><p className="font-bold text-red-900 text-lg">{t.orderCancelled}</p></div></div>);
     }
     
-    // COMPLAINT STATUS
     if (order.status === OrderStatus.COMPLAINT) {
         return (
             <div className="bg-red-50 p-6 rounded-3xl border border-red-200 space-y-4">
@@ -537,39 +569,31 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
                   <p className="text-sm text-yellow-800/80">{t.reviewRequest}</p>
                 </div>
              </div>
-             
              {order.paymentProofUrl && (
                 <div className="bg-white p-4 rounded-xl border border-yellow-200">
-                    <p className="text-xs font-bold text-stone-500 uppercase tracking-wide mb-2">Payment Proof</p>
+                    <p className="text-xs font-bold text-stone-500 uppercase tracking-wide mb-2">Bukti Pembayaran</p>
                     <a href={order.paymentProofUrl} target="_blank" rel="noopener noreferrer" className="block relative group overflow-hidden rounded-lg">
                         <img src={order.paymentProofUrl} alt="Payment Proof" className="w-full h-32 object-cover rounded-lg" />
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="text-white text-xs font-bold">View Full Image</span>
+                            <span className="text-white text-xs font-bold">Lihat Gambar Penuh</span>
                         </div>
                     </a>
                 </div>
              )}
-
              <button onClick={() => handleUpdateOrderStatus(order.id, OrderStatus.DESIGN)} className="w-full py-3 bg-berry-rich text-white rounded-xl font-bold hover:bg-berry-dark transition-colors shadow-lg shadow-yellow-100">{t.acceptOrder}</button>
              <button className="w-full py-3 bg-white border border-stone-200 text-stone-600 rounded-xl font-bold hover:bg-stone-50">{t.declineRequest}</button>
           </div>
         );
-      
       case OrderStatus.DESIGN:
         return (<div className="bg-purple-50/50 p-6 rounded-3xl border border-purple-200 space-y-4"><div className="flex items-start gap-3"><Scissors className="text-purple-600 mt-1" size={20} /><div><p className="font-bold text-purple-900 text-lg">{t.designPhase}</p><p className="text-sm text-purple-800/80">{t.designPhaseDesc}</p></div></div><button onClick={() => handleUpdateOrderStatus(order.id, OrderStatus.PRODUCTION)} className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-lg shadow-purple-100">{t.startProduction}</button></div>);
-
       case OrderStatus.PRODUCTION:
         return (<div className="bg-orange-50/50 p-6 rounded-3xl border border-orange-200 space-y-4"><div className="flex items-start gap-3"><Scissors className="text-orange-600 mt-1" size={20} /><div><p className="font-bold text-orange-900 text-lg">{t.inProduction}</p><p className="text-sm text-orange-800/80">{t.productionDesc}</p></div></div><button onClick={() => handleUpdateOrderStatus(order.id, OrderStatus.FINISHING)} className="w-full py-3 bg-orange-600 text-white rounded-xl font-bold hover:bg-orange-700 transition-colors shadow-lg shadow-orange-100">{t.moveToFinishing}</button></div>);
-
       case OrderStatus.FINISHING:
         return (<div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-200 space-y-4"><div className="flex items-start gap-3"><Package className="text-blue-600 mt-1" size={20} /><div><p className="font-bold text-blue-900 text-lg">{t.readyToShip}</p><p className="text-sm text-blue-800/80">{t.shipDesc}</p></div></div><input type="text" placeholder={t.trackingPlaceholder} className="w-full p-3 border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white" value={inputTracking} onChange={(e) => setInputTracking(e.target.value)} /><button onClick={() => { if(inputTracking) { handleUpdateOrderStatus(order.id, OrderStatus.SHIPPED, { trackingNumber: inputTracking }); setInputTracking(''); } else { showToast('error', 'Validasi', t.enterTrackingAlert); } }} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100">{t.markShipped}</button></div>);
-
       case OrderStatus.SHIPPED:
         return (<div className="bg-green-50/50 p-6 rounded-3xl border border-green-200"><div className="flex items-center gap-3 mb-3"><CheckCircle className="text-green-600" size={24} /><p className="font-bold text-green-900 text-lg">{t.orderShipped}</p></div><p className="text-sm text-green-800 mb-2">{t.trackingLabel} <span className="font-mono bg-white px-3 py-1 rounded-lg border border-green-200 ml-1 font-bold">{order.trackingNumber}</span></p><p className="text-xs text-green-600 mt-3">{t.shippedDesc}</p></div>);
-
       case OrderStatus.COMPLETED:
-        return (<div className="bg-green-100/50 p-6 rounded-3xl border border-green-300"><div className="flex items-center gap-3 mb-3"><CheckCircle className="text-green-700" size={24} /><p className="font-bold text-green-900 text-lg">Completed</p></div><p className="text-sm text-green-800">Funds have been released.</p></div>);
-
+        return (<div className="bg-green-100/50 p-6 rounded-3xl border border-green-300"><div className="flex items-center gap-3 mb-3"><CheckCircle className="text-green-700" size={24} /><p className="font-bold text-green-900 text-lg">Selesai</p></div><p className="text-sm text-green-800">Dana telah dilepaskan.</p></div>);
       default:
         return null;
     }
@@ -577,11 +601,9 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
 
   return (
     <div className="h-screen bg-[#FDFBF7] flex relative overflow-hidden">
-      {/* Background Decor */}
+      {/* ... Background and Toast omitted for brevity, same as before ... */}
       <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-brand-gold/5 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
       <div className="fixed bottom-0 left-0 w-[500px] h-[500px] bg-berry-rich/5 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
-
-      {/* Toast Notification */}
       {notification && (
         <div className="fixed top-6 right-6 z-[100] animate-fade-in-up w-full max-w-sm px-4 md:px-0">
           <div className={`bg-white shadow-2xl rounded-2xl p-4 border-l-4 flex items-start gap-4 ${notification.type === 'success' ? 'border-green-500' : 'border-red-500'}`}>
@@ -592,22 +614,71 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
               <h4 className={`font-bold text-sm ${notification.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
                 {notification.title}
               </h4>
-              <p className="text-xs text-stone-600 mt-1 leading-relaxed">
-                {notification.message}
-              </p>
+              <p className="text-xs text-stone-600 mt-1 leading-relaxed">{notification.message}</p>
             </div>
-            <button onClick={() => setNotification(null)} className="text-stone-400 hover:text-stone-600">
-              <X size={18} />
-            </button>
+            <button onClick={() => setNotification(null)} className="text-stone-400 hover:text-stone-600"><X size={18} /></button>
           </div>
         </div>
       )}
 
-      {/* Catalog Modal */}
+      {/* Detail Transaction Modal */}
+      {selectedTransaction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden border border-white relative animate-scale-in">
+                {/* Header Pattern */}
+                <div className="h-4 bg-gradient-to-r from-berry-rich to-brand-gold"></div>
+                <button 
+                    onClick={() => setSelectedTransaction(null)} 
+                    className="absolute top-4 right-4 p-2 bg-stone-100 rounded-full text-stone-400 hover:text-berry-rich transition-colors"
+                >
+                    <X size={20} />
+                </button>
+
+                <div className="p-8 text-center">
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${selectedTransaction.status === 'Success' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
+                        <CheckCircle size={32} />
+                    </div>
+                    <h3 className="text-2xl font-serif font-bold text-berry-rich">Pembayaran {selectedTransaction.status}</h3>
+                    <p className="text-stone-500 text-sm mt-1">{new Date(selectedTransaction.date).toLocaleString()}</p>
+                    
+                    <div className="my-8">
+                        <p className="text-stone-400 text-xs uppercase tracking-widest font-bold mb-2">Total Jumlah</p>
+                        <p className="text-4xl font-serif font-bold text-berry-rich">Rp {selectedTransaction.amount.toLocaleString()}</p>
+                    </div>
+
+                    <div className="bg-stone-50 rounded-2xl p-6 border border-stone-100 text-left space-y-4">
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm text-stone-500">ID Transaksi</span>
+                            <span className="text-sm font-mono font-bold text-stone-700 truncate w-32 text-right">{selectedTransaction.id}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm text-stone-500">Deskripsi</span>
+                            <span className="text-sm font-bold text-stone-700 truncate max-w-[150px]">{selectedTransaction.description}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm text-stone-500">Status</span>
+                            <span className={`text-xs font-bold px-3 py-1 rounded-full ${selectedTransaction.status === 'Success' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                {selectedTransaction.status}
+                            </span>
+                        </div>
+                    </div>
+
+                    <button 
+                        onClick={() => setSelectedTransaction(null)}
+                        className="w-full mt-8 py-3 bg-white border border-stone-200 text-stone-600 rounded-xl font-bold hover:bg-stone-50 flex items-center justify-center gap-2"
+                    >
+                        <Download size={18} /> Simpan Bukti
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Catalog Modal - UPDATED FOR MULTIPLE IMAGES */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-berry-rich/20 backdrop-blur-md p-4 animate-fade-in">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-white">
-            <div className="p-6 border-b border-stone-100 bg-stone-50/50 flex justify-between items-center">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-white max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-stone-100 bg-stone-50/50 flex justify-between items-center shrink-0">
               <h3 className="text-xl font-serif font-bold text-berry-rich">
                 {editingId ? t.editProject : t.addNewProject}
               </h3>
@@ -615,43 +686,239 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
                 <X size={20} />
               </button>
             </div>
-            <div className="p-8 space-y-6">
-              {/* ... Catalog form inputs same as before ... */}
-              <div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.projectTitle}</label><input type="text" className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50" placeholder={t.projectTitlePlaceholder} value={newItem.title} onChange={(e) => setNewItem({ ...newItem, title: e.target.value })} /></div><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.basePrice}</label><input type="number" className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50" placeholder="e.g. 500000" value={newItem.price} onChange={(e) => setNewItem({ ...newItem, price: e.target.value })} /></div><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Description</label><textarea className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 h-24" placeholder="Describe the material, style, etc..." value={newItem.description} onChange={(e) => setNewItem({ ...newItem, description: e.target.value })} /></div><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.imageUrl}</label><div className="flex gap-4 items-center">{newItem.imageUrl && (<div className="w-20 h-20 rounded-xl overflow-hidden bg-stone-100"><img src={newItem.imageUrl} alt="Preview" className="w-full h-full object-cover" /></div>)}<label className={`flex-1 cursor-pointer ${isUploadingCatalog ? 'opacity-50 pointer-events-none' : ''}`}><div className="h-20 border-2 border-dashed border-stone-300 rounded-xl bg-stone-50 hover:bg-white transition-colors flex flex-col items-center justify-center text-center">{isUploadingCatalog ? (<Loader2 className="animate-spin text-berry-rich" size={20} />) : (<UploadCloud className="text-stone-400 mb-1" size={20} />)}<span className="text-xs font-medium text-stone-500">{isUploadingCatalog ? 'Uploading...' : 'Upload Image'}</span><input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} /></div></label></div></div><button onClick={handleSaveCatalogItem} disabled={isUploadingCatalog} className="w-full py-4 bg-berry-rich text-white rounded-xl font-bold hover:shadow-lg transition-all">{editingId ? t.updateProject : t.saveProject}</button>
+            <div className="p-8 space-y-6 overflow-y-auto flex-1">
+              <div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.projectTitle}</label><input type="text" className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50" placeholder={t.projectTitlePlaceholder} value={newItem.title} onChange={(e) => setNewItem({ ...newItem, title: e.target.value })} /></div>
+              <div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.basePrice}</label><input type="number" className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50" placeholder="e.g. 500000" value={newItem.price} onChange={(e) => setNewItem({ ...newItem, price: Number(e.target.value) })} /></div>
+              <div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Deskripsi</label><textarea className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 h-24" placeholder="Jelaskan bahan, gaya, dll..." value={newItem.description} onChange={(e) => setNewItem({ ...newItem, description: e.target.value })} /></div>
+              
+              {/* IMAGE UPLOAD SECTION */}
+              <div>
+                  <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.imageUrl} (Galeri)</label>
+                  <div className="grid grid-cols-3 gap-3 mb-3">
+                      {newItem.images.map((img, idx) => (
+                          <div key={idx} className="relative aspect-square rounded-xl overflow-hidden group border border-stone-200">
+                              <img src={img} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
+                              <button 
+                                  onClick={() => handleRemoveImage(idx)}
+                                  className="absolute top-1 right-1 p-1 bg-white rounded-full text-red-500 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                  <X size={14} />
+                              </button>
+                          </div>
+                      ))}
+                      <label className={`aspect-square border-2 border-dashed border-stone-300 rounded-xl bg-stone-50 hover:bg-white transition-colors flex flex-col items-center justify-center text-center cursor-pointer ${isUploadingCatalog ? 'opacity-50 pointer-events-none' : ''}`}>
+                          {isUploadingCatalog ? (<Loader2 className="animate-spin text-berry-rich" size={24} />) : (<Plus className="text-stone-400" size={24} />)}
+                          <span className="text-[10px] font-bold text-stone-400 mt-1">{isUploadingCatalog ? '...' : 'Tambah'}</span>
+                          <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                      </label>
+                  </div>
+                  <p className="text-xs text-stone-400 italic">Unggah beberapa foto untuk memperlihatkan sudut berbeda.</p>
+              </div>
+
+              <button onClick={handleSaveCatalogItem} disabled={isUploadingCatalog} className="w-full py-4 bg-berry-rich text-white rounded-xl font-bold hover:shadow-lg transition-all">{editingId ? t.updateProject : t.saveProject}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Order Details Modal */}
+      {/* Order Details Modal (Unchanged content except for structure) */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-berry-rich/20 backdrop-blur-md p-4 animate-fade-in">
            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col border border-white">
-              {/* ... Content ... */}
               <div className="p-6 border-b border-stone-100 bg-stone-50/50 flex justify-between items-center"><div><h3 className="text-xl font-serif font-bold text-berry-rich">{t.viewOrderDetails}</h3><p className="text-xs text-stone-500 mt-1 font-mono">ID: {selectedOrder.id}</p></div><div className="flex items-center gap-2">{selectedOrder.status !== OrderStatus.CANCELLED && selectedOrder.status !== OrderStatus.COMPLETED && selectedOrder.status !== OrderStatus.SHIPPED && (<button onClick={() => handleCancelOrder(selectedOrder.id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors mr-2 border border-red-100">{t.cancelOrder}</button>)}<button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-stone-100 rounded-full text-stone-400 hover:text-berry-rich transition-colors"><X size={24} /></button></div></div>
               {selectedOrder.status !== OrderStatus.CANCELLED && selectedOrder.status !== OrderStatus.COMPLAINT && (<div className="bg-white px-8 py-6 border-b border-stone-100 overflow-x-auto"><div className="flex items-center gap-2 text-xs min-w-max">{[OrderStatus.CONSULTATION, OrderStatus.DESIGN, OrderStatus.PRODUCTION, OrderStatus.FINISHING, OrderStatus.SHIPPED, OrderStatus.COMPLETED].map((step, idx) => { const currentIdx = [OrderStatus.CONSULTATION, OrderStatus.DESIGN, OrderStatus.PRODUCTION, OrderStatus.FINISHING, OrderStatus.SHIPPED, OrderStatus.COMPLETED].indexOf(selectedOrder.status); const stepIdx = [OrderStatus.CONSULTATION, OrderStatus.DESIGN, OrderStatus.PRODUCTION, OrderStatus.FINISHING, OrderStatus.SHIPPED, OrderStatus.COMPLETED].indexOf(step); const isActive = stepIdx <= currentIdx; return (<div key={step} className="flex items-center gap-2"><div className={`px-4 py-2 rounded-full font-bold transition-all ${isActive ? 'bg-berry-rich text-white shadow-md' : 'bg-stone-100 text-stone-400'}`}>{step}</div>{idx < 5 && <div className={`w-10 h-1 rounded-full ${isActive ? 'bg-berry-rich' : 'bg-stone-100'}`}></div>}</div>);})}</div></div>)}
               {selectedOrder.status === OrderStatus.COMPLAINT && (<div className="bg-red-50 px-8 py-6 border-b border-red-100 flex items-center gap-3"><AlertTriangle className="text-red-600" size={24} /><div><p className="text-red-800 font-bold text-lg">Pesanan Dikomplain</p><p className="text-red-600 text-sm">Pelanggan melaporkan masalah.</p></div></div>)}
-              <div className="p-8 overflow-y-auto space-y-8 flex-1"><div className="flex flex-col md:flex-row gap-8"><div className="md:w-1/3 space-y-6"><img src={selectedOrder.imageUrl || 'https://via.placeholder.com/100'} alt="" className="w-full h-48 rounded-2xl object-cover shadow-lg hover:scale-105 transition-transform duration-500" />{renderWorkflowActions(selectedOrder)}</div><div className="md:w-2/3 space-y-6"><div className="flex justify-between items-start"><div><h4 className="font-serif font-bold text-2xl text-berry-rich">{selectedOrder.designName}</h4><p className="text-stone-500 font-medium mt-1">{t.customer}: <span className="text-stone-800">{selectedOrder.customerName}</span></p></div><div className="text-right"><p className="font-serif font-bold text-2xl text-brand-gold">Rp {selectedOrder.price.toLocaleString()}</p><span className="inline-block px-3 py-1 bg-green-100 text-green-700 text-[10px] rounded-full font-bold uppercase tracking-wider mt-1">PAID</span></div></div><div className="bg-stone-50 p-6 rounded-2xl border border-stone-100 space-y-5"><div><h5 className="font-bold text-sm text-stone-700 flex items-center gap-2 mb-2 uppercase tracking-wide"><Truck size={16} className="text-berry-rich" /> {t.shippingInfo}</h5><p className="font-medium text-stone-800">{selectedOrder.shippingMethod}</p><p className="text-sm text-stone-500 mt-1">{selectedOrder.shippingAddress}</p></div><div className="border-t border-stone-200 pt-4"><h5 className="font-bold text-sm text-stone-700 flex items-center gap-2 mb-2 uppercase tracking-wide"><MessageSquare size={16} className="text-berry-rich" /> {t.notes}</h5><p className="text-stone-600 italic bg-white p-3 rounded-xl border border-stone-100 text-sm">"{selectedOrder.customerNotes || 'No notes'}"</p></div></div>{selectedOrder.measurements && (<div><h5 className="font-bold text-sm text-berry-rich flex items-center gap-2 mb-4 uppercase tracking-wide"><Ruler size={16} /> {t.bodyMeasurements} (cm)</h5><div className="grid grid-cols-3 gap-3">{Object.entries(selectedOrder.measurements).map(([key, val]) => (<div key={key} className="bg-white border border-stone-200 p-3 rounded-xl text-center hover:border-brand-gold/50 transition-colors"><span className="block text-[10px] text-stone-400 uppercase tracking-wider mb-1 font-bold">{key}</span><span className="font-serif font-bold text-lg text-berry-rich">{val}</span></div>))}</div></div>)}</div></div></div>
+              <div className="p-8 overflow-y-auto space-y-8 flex-1"><div className="flex flex-col md:flex-row gap-8"><div className="md:w-1/3 space-y-6"><img src={selectedOrder.imageUrl || 'https://via.placeholder.com/100'} alt="" className="w-full h-48 rounded-2xl object-cover shadow-lg hover:scale-105 transition-transform duration-500" />{renderWorkflowActions(selectedOrder)}</div><div className="md:w-2/3 space-y-6"><div className="flex justify-between items-start"><div><h4 className="font-serif font-bold text-2xl text-berry-rich">{selectedOrder.designName}</h4><p className="text-stone-500 font-medium mt-1">{t.customer}: <span className="text-stone-800">{selectedOrder.customerName}</span></p></div><div className="text-right"><p className="font-serif font-bold text-2xl text-brand-gold">Rp {selectedOrder.price.toLocaleString()}</p><span className="inline-block px-3 py-1 bg-green-100 text-green-700 text-[10px] rounded-full font-bold uppercase tracking-wider mt-1">LUNAS</span></div></div><div className="bg-stone-50 p-6 rounded-2xl border border-stone-100 space-y-5"><div><h5 className="font-bold text-sm text-stone-700 flex items-center gap-2 mb-2 uppercase tracking-wide"><Truck size={16} className="text-berry-rich" /> {t.shippingInfo}</h5><p className="font-medium text-stone-800">{selectedOrder.shippingMethod}</p><p className="text-sm text-stone-500 mt-1">{selectedOrder.shippingAddress}</p></div><div className="border-t border-stone-200 pt-4"><h5 className="font-bold text-sm text-stone-700 flex items-center gap-2 mb-2 uppercase tracking-wide"><MessageSquare size={16} className="text-berry-rich" /> {t.notes}</h5><p className="text-stone-600 italic bg-white p-3 rounded-xl border border-stone-100 text-sm">"{selectedOrder.customerNotes || 'Tidak ada catatan'}"</p></div></div>{selectedOrder.measurements && (<div><h5 className="font-bold text-sm text-berry-rich flex items-center gap-2 mb-4 uppercase tracking-wide"><Ruler size={16} /> {t.bodyMeasurements} (cm)</h5><div className="grid grid-cols-3 gap-3">{Object.entries(selectedOrder.measurements).map(([key, val]) => (<div key={key} className="bg-white border border-stone-200 p-3 rounded-xl text-center hover:border-brand-gold/50 transition-colors"><span className="block text-[10px] text-stone-400 uppercase tracking-wider mb-1 font-bold">{key}</span><span className="font-serif font-bold text-lg text-berry-rich">{val}</span></div>))}</div></div>)}</div></div></div>
            </div>
         </div>
       )}
 
-      {/* Sidebar & Main Content (Same as before) */}
+      {/* Sidebar (Unchanged) */}
       <aside className={`fixed md:static inset-y-0 left-0 w-72 bg-gradient-to-b from-berry-rich to-berry-dark text-white z-30 flex flex-col h-full transform transition-transform duration-500 shadow-2xl ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="p-8 flex items-center justify-between"><div className="flex flex-col gap-2"><img src="https://raw.githubusercontent.com/idantexe/berrylybelle/refs/heads/main/logoooo.webp" alt="Berryly Belle" className="h-28 w-auto object-contain self-start drop-shadow-lg brightness-0 invert" /><span className="font-serif font-bold text-white text-3xl tracking-wide mt-2">Berryly <span className="text-brand-gold italic">Belle</span></span></div><button className="md:hidden text-white/70 hover:text-white" onClick={() => setSidebarOpen(false)}><X size={24} /></button></div>
         <div className="px-4 py-6 flex-1 overflow-y-auto"><nav className="space-y-2">{['overview', 'orders', 'transactions', 'catalog', 'reviews', 'chat', 'profile', 'settings'].map((tab) => (<button key={tab} onClick={() => { setActiveTab(tab as any); setSidebarOpen(false); }} className={`w-full flex items-center gap-4 px-6 py-4 transition-all duration-300 relative group capitalize ${activeTab === tab ? 'text-white' : 'text-purple-200 hover:text-white hover:bg-white/5'}`}>{activeTab === tab && (<div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-gold shadow-[0_0_10px_#D4AF37]"></div>)}{activeTab === tab && (<div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent"></div>)}{tab === 'overview' && <LayoutDashboard size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}{tab === 'orders' && <ShoppingBag size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}{tab === 'transactions' && <CreditCard size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}{tab === 'catalog' && <ImageIcon size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}{tab === 'reviews' && <Star size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}{tab === 'chat' && <MessageSquare size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}{tab === 'profile' && <UserIcon size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}{tab === 'settings' && <Settings size={20} className={activeTab === tab ? 'text-brand-gold' : ''} />}<span className="font-medium tracking-wide">{t[tab as keyof typeof t] || tab}</span></button>))}</nav></div>
-        <div className="p-4 mt-auto"><button onClick={onLogout} className="w-full flex items-center gap-3 px-6 py-4 text-red-200 hover:bg-white/10 hover:text-red-100 rounded-xl transition-colors font-medium"><LogOut size={20} /><span>{t.signOut}</span></button></div>
+        <div className="p-4 mt-auto">
+            <button onClick={onLogout} className="w-full flex items-center gap-3 px-6 py-4 text-red-200 hover:bg-white/10 hover:text-red-100 rounded-xl transition-colors font-medium"><LogOut size={20} /><span>{t.signOut}</span></button>
+            <p className="text-[10px] text-white/30 text-center mt-4">v1.0.0 (Build 20250523)</p>
+        </div>
       </aside>
 
       <main className="flex-1 overflow-y-auto h-full bg-transparent">
         <header className="bg-white/80 backdrop-blur-md border-b border-stone-200 p-4 md:hidden flex items-center justify-between sticky top-0 z-10 shadow-sm"><h1 className="font-serif font-bold text-lg text-berry-rich">{t.merchantPortal}</h1><button onClick={() => setSidebarOpen(true)} className="p-2 bg-stone-100 rounded-lg text-berry-rich"><Menu size={24} /></button></header>
         <div className="p-6 md:p-12 max-w-7xl mx-auto">
           {/* Dashboard Content */}
-          {activeTab === 'overview' && (<div className="space-y-10 animate-fade-in-up"><div><h2 className="text-4xl font-serif font-bold text-berry-rich mb-2">{t.hello}, <span className="text-stone-700">{user.brandName || user.name}</span></h2><p className="text-stone-500 text-lg font-light">{t.happening}</p></div><div className="grid md:grid-cols-3 gap-8"><StatCard icon={ShoppingBag} label={t.activeOrders} value={orders.length.toString()} color="bg-pink-100 text-pink-600" /><StatCard icon={TrendingUp} label={t.totalRevenue} value={`Rp ${transactions.reduce((acc, t) => acc + t.amount, 0).toLocaleString()}`} color="bg-green-100 text-green-600" /><StatCard icon={Users} label={t.newCustomers} value="0" color="bg-blue-100 text-blue-600" /></div><div className="grid md:grid-cols-3 gap-8"><div className="md:col-span-2 bg-white p-8 rounded-[2rem] shadow-sm border border-stone-100"><h3 className="font-serif font-bold text-xl mb-8 text-berry-rich">{t.orderStats}</h3><div className="h-72"><ResponsiveContainer width="100%" height="100%"><BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF'}} /><YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF'}} /><Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}} cursor={{fill: '#FDFBF7'}} /><Bar dataKey="orders" fill="#8B1E5B" radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer></div></div><div className="bg-white p-8 rounded-[2rem] shadow-sm border border-stone-100 flex flex-col"><h3 className="font-serif font-bold text-xl mb-6 text-berry-rich">{t.recentRequests}</h3><div className="space-y-4 flex-1">{orders.length === 0 ? (<p className="text-stone-400 text-sm text-center py-4">No active orders.</p>) : (orders.slice(0, 4).map(order => (<div key={order.id} onClick={() => setSelectedOrder(order)} className="flex items-center gap-4 p-3 hover:bg-stone-50 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-stone-100 group"><img src={order.imageUrl || 'https://via.placeholder.com/50'} alt="" className="w-14 h-14 rounded-xl object-cover shadow-sm group-hover:scale-105 transition-transform" /><div className="flex-1 min-w-0"><p className="font-bold text-sm truncate text-berry-rich">{order.designName}</p><p className="text-xs text-stone-500 truncate mt-0.5">{order.customerName}</p></div><span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${getStatusColor(order.status)}`}>{order.status}</span></div>)))}</div><button onClick={() => setActiveTab('orders')} className="w-full mt-6 py-3 border border-stone-200 rounded-xl text-sm font-bold text-stone-600 hover:bg-stone-50 transition-colors">{t.viewAll}</button></div></div></div>)}
-          {activeTab === 'orders' && (<div className="space-y-8 animate-fade-in-up"><h2 className="text-4xl font-serif font-bold text-berry-rich mb-8">{t.orderMgmt}</h2><div className="bg-white rounded-[2rem] shadow-sm border border-stone-100 overflow-hidden"><table className="w-full text-left"><thead className="bg-stone-50/80 border-b border-stone-200"><tr><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">Order ID</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">{t.orders}</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">{t.customer}</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">Status</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs text-right">Action</th></tr></thead><tbody>{orders.map(order => (<tr key={order.id} className="border-b border-stone-100 hover:bg-stone-50 cursor-pointer transition-colors" onClick={() => setSelectedOrder(order)}><td className="p-6 text-stone-500 font-mono text-xs">{order.id}</td><td className="p-6 font-bold text-berry-rich flex items-center gap-4"><img src={order.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover shadow-sm" />{order.designName}</td><td className="p-6 text-stone-600 font-medium">{order.customerName}</td><td className="p-6"><span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>{order.status}</span></td><td className="p-6 text-right"><button className="text-berry-rich font-bold text-xs uppercase tracking-wide hover:text-brand-gold transition-colors">{t.manage}</button></td></tr>))}{orders.length === 0 && (<tr><td colSpan={5} className="p-10 text-center text-stone-400">No orders yet.</td></tr>)}</tbody></table></div></div>)}
-          {/* Other tabs... */}
-          {activeTab === 'catalog' && (/* ... */ <div className="space-y-8 animate-fade-in-up"><div className="flex justify-between items-center mb-8"><div><h2 className="text-4xl font-serif font-bold text-berry-rich mb-2">{t.catalog}</h2><p className="text-stone-500">{t.catalogDesc}</p></div><button onClick={openAddModal} className="px-6 py-3 bg-berry-rich text-white rounded-xl font-bold hover:bg-berry-dark transition-all flex items-center gap-2 shadow-lg hover:shadow-berry-rich/30"><Plus size={20} /> {t.addCatalogItem}</button></div><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">{catalog.length === 0 ? (<div className="col-span-3 text-center py-20 bg-white rounded-[2rem] border border-stone-100"><ImageIcon size={48} className="mx-auto text-stone-300 mb-4" /><p className="text-stone-500 italic">You haven't added any items yet.</p></div>) : (catalog.map((item) => (<div key={item.id} className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-stone-100 hover:shadow-xl transition-all group"><div className="h-64 overflow-hidden relative"><img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" /><div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4"><button onClick={() => openEditModal(item)} className="p-3 bg-white rounded-full text-stone-700 hover:text-berry-rich"><Edit size={20} /></button><button onClick={() => handleDeleteItem(item.id)} className="p-3 bg-white rounded-full text-stone-700 hover:text-red-500"><Trash2 size={20} /></button></div></div><div className="p-6"><h3 className="font-serif font-bold text-xl text-berry-rich mb-1">{item.title}</h3><p className="text-brand-gold font-bold mb-3">Rp {item.price?.toLocaleString() || '0'}</p><p className="text-sm text-stone-500 line-clamp-2">{item.description}</p></div></div>)))}</div></div>)}
-          {activeTab === 'transactions' && (<div className="space-y-8 animate-fade-in-up"><h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.transactions}</h2>{transactions.length === 0 ? (<div className="bg-white rounded-[2rem] shadow-sm border border-stone-100 overflow-hidden text-center py-20"><CreditCard size={48} className="mx-auto text-stone-300 mb-4" /><p className="text-stone-500">No transactions yet.</p></div>) : (<div className="bg-white rounded-[2rem] shadow-sm border border-stone-100 overflow-hidden"><table className="w-full text-left"><thead className="bg-stone-50/80 border-b border-stone-200"><tr><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">Date</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">Description</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">Status</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs text-right">Amount</th></tr></thead><tbody>{transactions.map(tr => (<tr key={tr.id} className="border-b border-stone-100 hover:bg-stone-50 transition-colors"><td className="p-6 text-stone-500 text-sm">{new Date(tr.date).toLocaleDateString()}</td><td className="p-6 font-bold text-stone-700">{tr.description}</td><td className="p-6"><span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">{tr.status}</span></td><td className="p-6 text-right font-serif font-bold text-berry-rich">Rp {tr.amount.toLocaleString()}</td></tr>))}</tbody></table></div>)}</div>)}
+          {activeTab === 'overview' && (<div className="space-y-10 animate-fade-in-up"><div><h2 className="text-4xl font-serif font-bold text-berry-rich mb-2">{t.hello}, <span className="text-stone-700">{user.brandName || user.name}</span></h2><p className="text-stone-500 text-lg font-light">{t.happening}</p></div><div className="grid md:grid-cols-3 gap-8"><StatCard icon={ShoppingBag} label={t.activeOrders} value={orders.length.toString()} color="bg-pink-100 text-pink-600" /><StatCard icon={TrendingUp} label={t.totalRevenue} value={`Rp ${transactions.reduce((acc, t) => acc + t.amount, 0).toLocaleString()}`} color="bg-green-100 text-green-600" /><StatCard icon={Users} label={t.newCustomers} value="0" color="bg-blue-100 text-blue-600" /></div><div className="grid md:grid-cols-3 gap-8"><div className="md:col-span-2 bg-white p-8 rounded-[2rem] shadow-sm border border-stone-100"><h3 className="font-serif font-bold text-xl mb-8 text-berry-rich">{t.orderStats}</h3><div className="h-72"><ResponsiveContainer width="100%" height="100%"><BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF'}} /><YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF'}} /><Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}} cursor={{fill: '#FDFBF7'}} /><Bar dataKey="orders" fill="#8B1E5B" radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer></div></div><div className="bg-white p-8 rounded-[2rem] shadow-sm border border-stone-100 flex flex-col"><h3 className="font-serif font-bold text-xl mb-6 text-berry-rich">{t.recentRequests}</h3><div className="space-y-4 flex-1">{orders.length === 0 ? (<p className="text-stone-400 text-sm text-center py-4">Tidak ada pesanan aktif.</p>) : (orders.slice(0, 4).map(order => (<div key={order.id} onClick={() => setSelectedOrder(order)} className="flex items-center gap-4 p-3 hover:bg-stone-50 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-stone-100 group"><img src={order.imageUrl || 'https://via.placeholder.com/50'} alt="" className="w-14 h-14 rounded-xl object-cover shadow-sm group-hover:scale-105 transition-transform" /><div className="flex-1 min-w-0"><p className="font-bold text-sm truncate text-berry-rich">{order.designName}</p><p className="text-xs text-stone-500 truncate mt-0.5">{order.customerName}</p></div><span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${getStatusColor(order.status)}`}>{order.status}</span></div>)))}</div><button onClick={() => setActiveTab('orders')} className="w-full mt-6 py-3 border border-stone-200 rounded-xl text-sm font-bold text-stone-600 hover:bg-stone-50 transition-colors">{t.viewAll}</button></div></div></div>)}
+          {activeTab === 'orders' && (<div className="space-y-8 animate-fade-in-up"><h2 className="text-4xl font-serif font-bold text-berry-rich mb-8">{t.orderMgmt}</h2><div className="bg-white rounded-[2rem] shadow-sm border border-stone-100 overflow-hidden"><table className="w-full text-left"><thead className="bg-stone-50/80 border-b border-stone-200"><tr><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">ID Pesanan</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">{t.orders}</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">{t.customer}</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">Status</th><th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs text-right">Aksi</th></tr></thead><tbody>{orders.map(order => (<tr key={order.id} className="border-b border-stone-100 hover:bg-stone-50 cursor-pointer transition-colors" onClick={() => setSelectedOrder(order)}><td className="p-6 text-stone-500 font-mono text-xs">{order.id}</td><td className="p-6 font-bold text-berry-rich flex items-center gap-4"><img src={order.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover shadow-sm" />{order.designName}</td><td className="p-6 text-stone-600 font-medium">{order.customerName}</td><td className="p-6"><span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>{order.status}</span></td><td className="p-6 text-right"><button className="text-berry-rich font-bold text-xs uppercase tracking-wide hover:text-brand-gold transition-colors">{t.manage}</button></td></tr>))}{orders.length === 0 && (<tr><td colSpan={5} className="p-10 text-center text-stone-400">Belum ada pesanan.</td></tr>)}</tbody></table></div></div>)}
+          
+          {activeTab === 'catalog' && (
+            <div className="space-y-8 animate-fade-in-up">
+                <div className="flex justify-between items-center mb-8">
+                    <div>
+                        <h2 className="text-4xl font-serif font-bold text-berry-rich mb-2">{t.catalog}</h2>
+                        <p className="text-stone-500">{t.catalogDesc}</p>
+                    </div>
+                    <button onClick={openAddModal} className="px-6 py-3 bg-berry-rich text-white rounded-xl font-bold hover:bg-berry-dark transition-all flex items-center gap-2 shadow-lg hover:shadow-berry-rich/30">
+                        <Plus size={20} /> {t.addCatalogItem}
+                    </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {catalog.length === 0 ? (
+                        <div className="col-span-3 text-center py-20 bg-white rounded-[2rem] border border-stone-100">
+                            <ImageIcon size={48} className="mx-auto text-stone-300 mb-4" />
+                            <p className="text-stone-500 italic">Anda belum menambahkan item apa pun.</p>
+                        </div>
+                    ) : (
+                        catalog.map((item) => {
+                            const thumbnail = item.images && item.images.length > 0 ? item.images[0] : item.imageUrl;
+                            return (
+                                <div key={item.id} className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-stone-100 hover:shadow-xl transition-all group">
+                                    <div className="h-64 overflow-hidden relative">
+                                        <img 
+                                            src={thumbnail || 'https://via.placeholder.com/300'} 
+                                            alt={item.title} 
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                        />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                                            <button onClick={() => openEditModal(item)} className="p-3 bg-white rounded-full text-stone-700 hover:text-berry-rich">
+                                                <Edit size={20} />
+                                            </button>
+                                            <button onClick={() => handleDeleteItem(item.id)} className="p-3 bg-white rounded-full text-stone-700 hover:text-red-500">
+                                                <Trash2 size={20} />
+                                            </button>
+                                        </div>
+                                        {item.images && item.images.length > 1 && (
+                                            <div className="absolute bottom-3 right-3 bg-black/50 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                                                <ImageIcon size={12} /> {item.images.length}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="p-6">
+                                        <h3 className="font-serif font-bold text-xl text-berry-rich mb-1">{item.title}</h3>
+                                        <p className="text-brand-gold font-bold mb-3">Rp {item.price?.toLocaleString() || '0'}</p>
+                                        <p className="text-sm text-stone-500 line-clamp-2">{item.description}</p>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            </div>
+          )}
+          
+          {/* Other Tabs (transactions, reviews, etc.) unchanged */}
+          {activeTab === 'transactions' && (
+            <div className="space-y-8 animate-fade-in-up">
+                <h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.transactions}</h2>
+                
+                {/* Filter Toolbar */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-stone-100 flex flex-wrap items-end gap-4 mb-6">
+                    <div className="flex items-center gap-2 text-berry-rich font-bold border-r border-stone-200 pr-4 mr-2">
+                        <Filter size={20} /> Filter
+                    </div>
+                    
+                    <div>
+                        <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Status</label>
+                        <select 
+                            className="p-2.5 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
+                            value={transFilters.status}
+                            onChange={(e) => setTransFilters({...transFilters, status: e.target.value})}
+                        >
+                            <option value="All">Semua Status</option>
+                            <option value="Success">Success</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Failed">Failed</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Tanggal Mulai</label>
+                        <div className="relative">
+                            <input 
+                                type="date" 
+                                className="p-2.5 pl-9 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
+                                value={transFilters.startDate}
+                                onChange={(e) => setTransFilters({...transFilters, startDate: e.target.value})}
+                            />
+                            <Calendar size={14} className="absolute left-3 top-3 text-stone-400" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Tanggal Akhir</label>
+                        <div className="relative">
+                            <input 
+                                type="date" 
+                                className="p-2.5 pl-9 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-berry-rich/20 outline-none"
+                                value={transFilters.endDate}
+                                onChange={(e) => setTransFilters({...transFilters, endDate: e.target.value})}
+                            />
+                            <Calendar size={14} className="absolute left-3 top-3 text-stone-400" />
+                        </div>
+                    </div>
+
+                    <button 
+                        onClick={() => setTransFilters({ status: 'All', startDate: '', endDate: '' })}
+                        className="ml-auto px-4 py-2.5 text-sm font-bold text-stone-500 hover:text-berry-rich hover:bg-stone-50 rounded-lg transition-colors"
+                    >
+                        Reset
+                    </button>
+                </div>
+
+                {/* Table */}
+                {filteredTransactions.length === 0 ? (
+                    <div className="bg-white rounded-[2rem] shadow-sm border border-stone-100 overflow-hidden text-center py-20">
+                        <CreditCard size={48} className="mx-auto text-stone-300 mb-4" />
+                        <p className="text-stone-500">Tidak ada transaksi yang cocok.</p>
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-[2rem] shadow-sm border border-stone-100 overflow-hidden">
+                        <table className="w-full text-left">
+                            <thead className="bg-stone-50/80 border-b border-stone-200">
+                                <tr>
+                                    <th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">Tanggal</th>
+                                    <th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">Deskripsi</th>
+                                    <th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs">Status</th>
+                                    <th className="p-6 font-bold text-stone-500 uppercase tracking-wider text-xs text-right">Jumlah</th>
+                                    <th className="p-6 text-right"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredTransactions.map(tr => (
+                                    <tr 
+                                        key={tr.id} 
+                                        className="border-b border-stone-100 hover:bg-stone-50 transition-colors cursor-pointer group"
+                                        onClick={() => setSelectedTransaction(tr)}
+                                    >
+                                        <td className="p-6 text-stone-500 text-sm">
+                                            {new Date(tr.date).toLocaleDateString()}
+                                            <span className="block text-xs text-stone-400 mt-1">{new Date(tr.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                        </td>
+                                        <td className="p-6 font-bold text-stone-700">
+                                            {tr.description}
+                                            <span className="block text-xs text-stone-400 mt-1 font-normal font-mono">ID: {tr.id.substring(0, 8)}...</span>
+                                        </td>
+                                        <td className="p-6">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                                                tr.status === 'Success' ? 'bg-green-100 text-green-700 border-green-200' : 
+                                                (tr.status === 'Pending' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-red-100 text-red-700 border-red-200')
+                                            }`}>
+                                                {tr.status}
+                                            </span>
+                                        </td>
+                                        <td className="p-6 text-right font-serif font-bold text-berry-rich text-lg">
+                                            Rp {tr.amount.toLocaleString()}
+                                        </td>
+                                        <td className="p-6 text-right text-stone-300 group-hover:text-berry-rich transition-colors">
+                                            <ChevronRight size={20} />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+          )}
           
           {/* Reviews Tab */}
           {activeTab === 'reviews' && (
@@ -661,14 +928,14 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
                   <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm flex items-center gap-4">
                       <div className="p-4 bg-brand-gold/10 rounded-full text-brand-gold"><Star size={24} fill="currentColor" /></div>
                       <div>
-                          <p className="text-xs text-stone-500 uppercase tracking-wide font-bold">Average Rating</p>
+                          <p className="text-xs text-stone-500 uppercase tracking-wide font-bold">Rata-rata Rating</p>
                           <p className="text-2xl font-serif font-bold text-berry-rich">{profileData.rating ? profileData.rating.toFixed(1) : "0.0"}</p>
                       </div>
                   </div>
                   <div className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm flex items-center gap-4">
                       <div className="p-4 bg-berry-rich/10 rounded-full text-berry-rich"><Users size={24} /></div>
                       <div>
-                          <p className="text-xs text-stone-500 uppercase tracking-wide font-bold">Total Reviews</p>
+                          <p className="text-xs text-stone-500 uppercase tracking-wide font-bold">Total Ulasan</p>
                           <p className="text-2xl font-serif font-bold text-berry-rich">{profileData.reviewCount || 0}</p>
                       </div>
                   </div>
@@ -688,7 +955,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
                             </div>
                             <div className="flex-1">
                                 <div className="flex justify-between items-start mb-2">
-                                    <h4 className="font-bold text-berry-rich">{review.reviewerName || "Anonymous"}</h4>
+                                    <h4 className="font-bold text-berry-rich">{review.reviewerName || "Anonim"}</h4>
                                     <span className="text-xs text-stone-400">{new Date(review.date).toLocaleDateString()}</span>
                                 </div>
                                 <div className="flex items-center gap-1 mb-3">
@@ -710,12 +977,13 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
             </div>
           )}
 
-          {activeTab === 'chat' && (<div className="grid md:grid-cols-3 h-[650px] bg-white rounded-[2.5rem] shadow-xl border border-stone-100 overflow-hidden animate-fade-in-up"><div className="border-r border-stone-100 bg-stone-50/50 flex flex-col h-full overflow-hidden"><div className="p-6 border-b border-stone-100"><h3 className="font-serif font-bold text-berry-rich text-xl">{t.chats}</h3></div><div className="flex-1 overflow-y-auto p-3">{activeConversations.map(convo => (<div key={convo.id} onClick={() => setActiveChatId(convo.id)} className={`p-4 mb-2 rounded-2xl cursor-pointer transition-all ${activeChatId === convo.id ? 'bg-white shadow-md border border-stone-100' : 'hover:bg-white/50 hover:shadow-sm'}`}><div className="flex justify-between mb-1"><span className={`font-bold text-sm ${activeChatId === convo.id ? 'text-berry-rich' : 'text-stone-700'}`}>{convo.participantName}</span></div><p className="text-xs text-stone-500 truncate font-medium">Click to chat</p></div>))}{activeConversations.length === 0 && (<p className="text-center p-4 text-stone-400 text-sm">No active chats.</p>)}</div></div><div className="md:col-span-2 flex flex-col bg-white h-full overflow-hidden">{activeChatId ? (<><div className="p-6 border-b border-stone-100 bg-white flex items-center justify-between"><h3 className="font-serif font-bold text-berry-rich text-xl">Chat</h3></div><div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FDFBF7]">{messages.map((msg) => (<div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[75%] p-4 rounded-2xl shadow-sm relative group transition-transform hover:scale-[1.01] ${msg.isMe ? 'bg-berry-rich text-white rounded-tr-none shadow-berry-rich/20' : 'bg-white text-stone-800 rounded-tl-none border border-stone-100'}`}>{msg.attachmentUrl && (<div className="mb-3 rounded-xl overflow-hidden border border-white/20"><img src={msg.attachmentUrl} alt="Attached" className="w-full h-auto max-h-48 object-cover" /></div>)}<p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.text}</p><span className={`text-[10px] block text-right mt-1.5 opacity-70 font-medium ${msg.isMe ? 'text-pink-100' : 'text-stone-400'}`}>{msg.timestamp?.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div></div>))}</div><div className="p-6 border-t border-stone-100 bg-white"><div className="flex gap-3"><label className={`p-4 bg-stone-50 border border-stone-200 rounded-2xl cursor-pointer hover:bg-stone-100 transition-colors flex items-center justify-center ${isUploadingChat ? 'opacity-50 pointer-events-none' : ''}`}>{isUploadingChat ? <Loader2 className="animate-spin text-stone-500" size={20} /> : <Paperclip size={20} className="text-stone-500" />}<input type="file" className="hidden" accept="image/*" onChange={handleChatImageUpload} disabled={isUploadingChat} /></label><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={t.typeMessage || "Type a message..."} className="flex-1 p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20 text-sm font-medium transition-all" /><button onClick={handleSendMessage} className="p-4 bg-berry-rich text-white rounded-2xl hover:bg-berry-dark transition-colors shadow-lg hover:shadow-berry-rich/30"><Send size={20} /></button></div></div></>) : (<div className="flex-1 flex items-center justify-center flex-col text-stone-300"><div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6"><MessageSquare size={32} className="opacity-50" /></div><p className="font-serif text-lg">{t.selectConversation}</p></div>)}</div></div>)}
+          {activeTab === 'chat' && (<div className="grid md:grid-cols-3 h-[650px] bg-white rounded-[2.5rem] shadow-xl border border-stone-100 overflow-hidden animate-fade-in-up"><div className="border-r border-stone-100 bg-stone-50/50 flex flex-col h-full overflow-hidden"><div className="p-6 border-b border-stone-100"><h3 className="font-serif font-bold text-berry-rich text-xl">{t.chats}</h3></div><div className="flex-1 overflow-y-auto p-3">{activeConversations.map(convo => (<div key={convo.id} onClick={() => setActiveChatId(convo.id)} className={`p-4 mb-2 rounded-2xl cursor-pointer transition-all ${activeChatId === convo.id ? 'bg-white shadow-md border border-stone-100' : 'hover:bg-white/50 hover:shadow-sm'}`}><div className="flex justify-between mb-1"><span className={`font-bold text-sm ${activeChatId === convo.id ? 'text-berry-rich' : 'text-stone-700'}`}>{convo.participantName}</span></div><p className="text-xs text-stone-500 truncate font-medium">Klik untuk chat</p></div>))}{activeConversations.length === 0 && (<p className="text-center p-4 text-stone-400 text-sm">Tidak ada chat aktif.</p>)}</div></div><div className="md:col-span-2 flex flex-col bg-white h-full overflow-hidden">{activeChatId ? (<><div className="p-6 border-b border-stone-100 bg-white flex items-center justify-between"><h3 className="font-serif font-bold text-berry-rich text-xl">Chat</h3></div><div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FDFBF7]">{messages.map((msg) => (<div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[75%] p-4 rounded-2xl shadow-sm relative group transition-transform hover:scale-[1.01] ${msg.isMe ? 'bg-berry-rich text-white rounded-tr-none shadow-berry-rich/20' : 'bg-white text-stone-800 rounded-tl-none border border-stone-100'}`}>{msg.attachmentUrl && (<div className="mb-3 rounded-xl overflow-hidden border border-white/20"><img src={msg.attachmentUrl} alt="Attached" className="w-full h-auto max-h-48 object-cover" /></div>)}<p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.text}</p><span className={`text-[10px] block text-right mt-1.5 opacity-70 font-medium ${msg.isMe ? 'text-pink-100' : 'text-stone-400'}`}>{msg.timestamp?.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div></div>))}</div><div className="p-6 border-t border-stone-100 bg-white"><div className="flex gap-3"><label className={`p-4 bg-stone-50 border border-stone-200 rounded-2xl cursor-pointer hover:bg-stone-100 transition-colors flex items-center justify-center ${isUploadingChat ? 'opacity-50 pointer-events-none' : ''}`}>{isUploadingChat ? <Loader2 className="animate-spin text-stone-500" size={20} /> : <Paperclip size={20} className="text-stone-500" />}<input type="file" className="hidden" accept="image/*" onChange={handleChatImageUpload} disabled={isUploadingChat} /></label><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={t.typeMessage || "Ketik pesan..."} className="flex-1 p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20 text-sm font-medium transition-all" /><button onClick={handleSendMessage} className="p-4 bg-berry-rich text-white rounded-2xl hover:bg-berry-dark transition-colors shadow-lg hover:shadow-berry-rich/30"><Send size={20} /></button></div></div></>) : (<div className="flex-1 flex items-center justify-center flex-col text-stone-300"><div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6"><MessageSquare size={32} className="opacity-50" /></div><p className="font-serif text-lg">{t.selectConversation}</p></div>)}</div></div>)}
           {activeTab === 'profile' && (
              <div className="space-y-8 animate-fade-in-up">
               <h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.profile}</h2>
               <div className="grid md:grid-cols-2 gap-10">
                 <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-stone-100 relative overflow-hidden">
+                   {/* ... Profile content (Store Info) ... */}
                    <h3 className="font-serif font-bold text-2xl mb-6 text-berry-rich">{t.storeInfo}</h3>
                    <div className="flex flex-col items-center mb-8">
                       <div className="w-24 h-24 rounded-full bg-stone-100 border-4 border-white shadow-lg overflow-hidden mb-4 relative group">
@@ -736,7 +1004,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
                             <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} disabled={isUploadingProfile} />
                          </label>
                       </div>
-                      <p className="text-xs text-stone-400">Click to upload brand logo</p>
+                      <p className="text-xs text-stone-400">Klik untuk unggah logo brand</p>
                    </div>
                    <div className="space-y-5">
                       <div>
@@ -755,12 +1023,13 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
                 </div>
                 
                 <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-stone-100 relative overflow-hidden">
+                   {/* ... Profile Content (Contact & Payment) ... */}
                    <h3 className="font-serif font-bold text-2xl mb-6 text-berry-rich">{t.contactInfo} & {t.paymentInfo}</h3>
                    <div className="space-y-5">
                       <div>
                          <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.email}</label>
                          <input type="email" disabled className="w-full p-4 border border-stone-200 rounded-xl bg-stone-100 text-stone-500 cursor-not-allowed" value={profileData.email} />
-                         <p className="text-xs text-stone-400 mt-1">To change email, go to Settings.</p>
+                         <p className="text-xs text-stone-400 mt-1">Untuk mengganti email, buka Pengaturan.</p>
                       </div>
                       <div>
                          <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.phone}</label>
@@ -811,7 +1080,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
               </div>
              </div>
           )}
-          {activeTab === 'settings' && (/* ... */ <div className="max-w-3xl mx-auto space-y-8 animate-fade-in-up"><h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.accountSettings}</h2><div className="bg-white p-8 rounded-[2rem] border border-stone-100 shadow-sm"><h3 className="text-xl font-serif font-bold text-berry-rich mb-6 flex items-center gap-2"><Lock size={20} /> {t.security}</h3><form onSubmit={handleUpdateSettings} className="space-y-6"><div className="p-4 bg-stone-50 rounded-xl border border-stone-200"><h4 className="font-bold text-stone-700 mb-4">{t.changePassword}</h4><div className="space-y-4"><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.newPassword}</label><input type="password" className="w-full p-4 border border-stone-200 rounded-xl bg-white" placeholder="Min. 6 characters" value={settingsForm.newPassword} onChange={(e) => setSettingsForm({...settingsForm, newPassword: e.target.value})} /></div><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.confirmNewPassword}</label><input type="password" className="w-full p-4 border border-stone-200 rounded-xl bg-white" placeholder="Confirm new password" value={settingsForm.confirmPassword} onChange={(e) => setSettingsForm({...settingsForm, confirmPassword: e.target.value})} /></div></div></div><div className="p-4 bg-stone-50 rounded-xl border border-stone-200"><h4 className="font-bold text-stone-700 mb-4">Update Email</h4><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.email}</label><input type="email" className="w-full p-4 border border-stone-200 rounded-xl bg-white" value={settingsForm.newEmail} onChange={(e) => setSettingsForm({...settingsForm, newEmail: e.target.value})} /><p className="text-xs text-orange-500 mt-2 flex items-center gap-1"><Bell size={12} /> Note: Changing email requires you to re-login.</p></div></div><div className="flex justify-end pt-4"><button type="submit" disabled={settingsLoading} className="px-8 py-4 bg-gradient-to-r from-berry-rich to-berry-dark text-white rounded-xl font-bold hover:shadow-xl transition-all shadow-lg flex items-center gap-2 disabled:opacity-70">{settingsLoading ? 'Saving...' : <><Save size={18} /> {t.saveSettings}</>}</button></div></form></div></div>)}
+          {activeTab === 'settings' && (/* ... */ <div className="max-w-3xl mx-auto space-y-8 animate-fade-in-up"><h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.accountSettings}</h2><div className="bg-white p-8 rounded-[2rem] border border-stone-100 shadow-sm"><h3 className="text-xl font-serif font-bold text-berry-rich mb-6 flex items-center gap-2"><Lock size={20} /> {t.security}</h3><form onSubmit={handleUpdateSettings} className="space-y-6"><div className="p-4 bg-stone-50 rounded-xl border border-stone-200"><h4 className="font-bold text-stone-700 mb-4">{t.changePassword}</h4><div className="space-y-4"><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.newPassword}</label><input type="password" className="w-full p-4 border border-stone-200 rounded-xl bg-white" placeholder="Min. 6 karakter" value={settingsForm.newPassword} onChange={(e) => setSettingsForm({...settingsForm, newPassword: e.target.value})} /></div><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.confirmNewPassword}</label><input type="password" className="w-full p-4 border border-stone-200 rounded-xl bg-white" placeholder="Konfirmasi kata sandi" value={settingsForm.confirmPassword} onChange={(e) => setSettingsForm({...settingsForm, confirmPassword: e.target.value})} /></div></div></div><div className="p-4 bg-stone-50 rounded-xl border border-stone-200"><h4 className="font-bold text-stone-700 mb-4">Update Email</h4><div><label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{t.email}</label><input type="email" className="w-full p-4 border border-stone-200 rounded-xl bg-white" value={settingsForm.newEmail} onChange={(e) => setSettingsForm({...settingsForm, newEmail: e.target.value})} /><p className="text-xs text-orange-500 mt-2 flex items-center gap-1"><Bell size={12} /> Catatan: Mengubah email mengharuskan Anda login ulang.</p></div></div><div className="flex justify-end pt-4"><button type="submit" disabled={settingsLoading} className="px-8 py-4 bg-gradient-to-r from-berry-rich to-berry-dark text-white rounded-xl font-bold hover:shadow-xl transition-all shadow-lg flex items-center gap-2 disabled:opacity-70">{settingsLoading ? 'Menyimpan...' : <><Save size={18} /> {t.saveSettings}</>}</button></div></form></div></div>)}
         </div>
       </main>
     </div>

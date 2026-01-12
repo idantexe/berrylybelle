@@ -21,22 +21,29 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // User is signed in, fetch profile
-        const profile = await getUserProfile(firebaseUser.uid);
-        if (profile) {
-          // CRITICAL FIX: 
-          // If we are explicitly trying to login with a specific role (authTargetRole is set),
-          // and the profile role doesn't match, DO NOT switch to dashboard automatically.
-          // Let the Auth component handle the error display and sign out.
-          if (authTargetRole && profile.role !== authTargetRole) {
-             setLoading(false);
-             return;
-          }
+        try {
+          // User is signed in, fetch profile
+          const profile = await getUserProfile(firebaseUser.uid);
+          if (profile) {
+            // CRITICAL FIX: 
+            // If we are explicitly trying to login with a specific role (authTargetRole is set),
+            // and the profile role doesn't match, DO NOT switch to dashboard automatically.
+            // Let the Auth component handle the error display and sign out.
+            if (authTargetRole && profile.role !== authTargetRole) {
+               setLoading(false);
+               return;
+            }
 
-          setCurrentUser(profile);
-          setCurrentView('dashboard');
-        } else {
-          // Profile doesn't exist yet (or error), maybe stay on auth or landing
+            setCurrentUser(profile);
+            setCurrentView('dashboard');
+          } else {
+            // Profile doesn't exist yet (or error), maybe stay on auth or landing
+            setCurrentUser(null);
+          }
+        } catch (error) {
+          console.error("Error in auth state change:", error);
+          // If permission denied, user might be logged in but can't read profile.
+          // Stay logged out in the UI to prevent hanging.
           setCurrentUser(null);
         }
       } else {
