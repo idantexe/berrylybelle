@@ -128,18 +128,18 @@ export const Auth: React.FC<AuthProps> = ({ initialView, initialRole, onLogin, o
         }
 
         // Fetch User Profile from Firestore to Check Role
-        // Add a small delay/retry logic if needed, but usually not needed if registration worked
         const userProfile = await getUserProfile(firebaseUser.uid);
         
         if (userProfile) {
-          // Check Role Match
+          // Check Role Match - STRICT CHECK
           if (userProfile.role !== role) {
              await signOut(auth);
-             const attemptedRole = role === UserRole.CUSTOMER ? 'Pelanggan (Customer)' : 'Mitra (Merchant)';
-             const actualRole = userProfile.role === UserRole.CUSTOMER ? 'Pelanggan (Customer)' : 'Mitra (Merchant)';
              
-             showToast('error', 'Jenis Akun Tidak Sesuai', `Akun ini terdaftar sebagai ${actualRole}.`);
-             setError(`Akun Anda adalah ${actualRole}. Silakan pindah ke tab yang sesuai.`);
+             // Specific error message requested by user
+             const errorMsg = "User yang anda salah silahkan masuk ke customer atau mitra";
+             
+             showToast('error', 'Login Gagal', errorMsg);
+             setError(errorMsg);
              setIsLoading(false);
              return; 
           }
@@ -241,10 +241,6 @@ export const Auth: React.FC<AuthProps> = ({ initialView, initialRole, onLogin, o
                 </div>
                 <button 
                     onClick={() => { 
-                        // When going back to login, we can sign out now or let App.tsx handle it.
-                        // Ideally, we sign out to force fresh login flow, but if we want to allow 
-                        // seamless "I verified in another tab" experience, we could keep session.
-                        // But for security/simplicity in this requested flow:
                         signOut(auth).then(() => {
                            setShowVerificationSent(false); 
                            setView('login'); 

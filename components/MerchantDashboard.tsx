@@ -194,6 +194,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeConversations, setActiveConversations] = useState<ChatConversation[]>([]);
+  const [currentChatParticipant, setCurrentChatParticipant] = useState<{id: string, name: string} | null>(null);
 
   // 1. Fetch Orders Live & Sync Selected Order
   useEffect(() => {
@@ -342,14 +343,22 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
   const handleSendMessage = async () => {
     if (!chatInput.trim() || !activeChatId) return;
     try {
+        // Prepare participants to repair any broken chats
+        const participants = currentChatParticipant ? [user.id, currentChatParticipant.id] : undefined;
+        const participantNames = currentChatParticipant ? {
+            [user.id]: user.brandName || user.name,
+            [currentChatParticipant.id]: currentChatParticipant.name
+        } : undefined;
+
         await sendMessage(activeChatId, {
             senderId: user.id,
             senderName: user.brandName || user.name,
             text: chatInput,
-        });
+        }, participants, participantNames);
         setChatInput('');
     } catch (e) {
         console.error(e);
+        showToast('error', 'Gagal', 'Gagal mengirim pesan');
     }
   };
 
@@ -359,12 +368,20 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
       setIsUploadingChat(true);
       try {
         const imageUrl = await uploadToCloudinary(file);
+        
+        // Prepare participants to repair any broken chats
+        const participants = currentChatParticipant ? [user.id, currentChatParticipant.id] : undefined;
+        const participantNames = currentChatParticipant ? {
+            [user.id]: user.brandName || user.name,
+            [currentChatParticipant.id]: currentChatParticipant.name
+        } : undefined;
+
         await sendMessage(activeChatId, {
             senderId: user.id,
             senderName: user.brandName || user.name,
             text: 'Mengirim gambar',
             attachmentUrl: imageUrl
-        });
+        }, participants, participantNames);
       } catch (error) {
         showToast('error', 'Error', "Gagal mengunggah gambar. Silakan coba lagi.");
       } finally {
@@ -576,6 +593,21 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
     if (window.confirm(t.cancelConfirm)) {
       handleUpdateOrderStatus(orderId, OrderStatus.CANCELLED);
     }
+  };
+
+  const handleChatSelect = (chatId: string, participantName: string) => {
+      setActiveChatId(chatId);
+      
+      // Parse other user ID from ChatID (format: sorted(uid1, uid2))
+      const parts = chatId.split('_');
+      const otherId = parts.find(id => id !== user.id);
+      
+      if (otherId) {
+          setCurrentChatParticipant({
+              id: otherId,
+              name: participantName
+          });
+      }
   };
 
   // ... (Render methods same as before) ...
@@ -1060,7 +1092,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ user, onLo
             </div>
           )}
 
-          {activeTab === 'chat' && (<div className="grid md:grid-cols-3 h-[650px] bg-white rounded-[2.5rem] shadow-xl border border-stone-100 overflow-hidden animate-fade-in-up"><div className="border-r border-stone-100 bg-stone-50/50 flex flex-col h-full overflow-hidden"><div className="p-6 border-b border-stone-100"><h3 className="font-serif font-bold text-berry-rich text-xl">{t.consultations}</h3></div><div className="flex-1 overflow-y-auto p-3">{activeConversations.map(convo => (<div key={convo.id} onClick={() => setActiveChatId(convo.id)} className={`p-4 mb-2 rounded-2xl cursor-pointer transition-all ${activeChatId === convo.id ? 'bg-white shadow-md border border-stone-100' : 'hover:bg-white/50 hover:shadow-sm'}`}><div className="flex justify-between mb-1"><span className={`font-bold text-sm ${activeChatId === convo.id ? 'text-berry-rich' : 'text-stone-700'}`}>{convo.participantName}</span></div><p className="text-xs text-stone-500 truncate font-medium">Klik untuk chat</p></div>))}{activeConversations.length === 0 && (<p className="text-center p-4 text-stone-400 text-sm">Tidak ada chat aktif.</p>)}</div></div><div className="md:col-span-2 flex flex-col bg-white h-full overflow-hidden">{activeChatId ? (<><div className="p-6 border-b border-stone-100 bg-white flex items-center justify-between"><h3 className="font-serif font-bold text-berry-rich text-xl">Chat</h3></div><div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FDFBF7]">{messages.map((msg) => (<div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[75%] p-4 rounded-2xl shadow-sm relative group transition-transform hover:scale-[1.01] ${msg.isMe ? 'bg-berry-rich text-white rounded-tr-none shadow-berry-rich/20' : 'bg-white text-stone-800 rounded-tl-none border border-stone-100'}`}>{msg.attachmentUrl && (<div className="mb-3 rounded-xl overflow-hidden border border-white/20"><img src={msg.attachmentUrl} alt="Attached" className="w-full h-auto max-h-48 object-cover" /></div>)}<p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.text}</p><span className={`text-[10px] block text-right mt-1.5 opacity-70 font-medium ${msg.isMe ? 'text-pink-100' : 'text-stone-400'}`}>{msg.timestamp?.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div></div>))}</div><div className="p-6 border-t border-stone-100 bg-white"><div className="flex gap-3"><label className={`p-4 bg-stone-50 border border-stone-200 rounded-2xl cursor-pointer hover:bg-stone-100 transition-colors flex items-center justify-center ${isUploadingChat ? 'opacity-50 pointer-events-none' : ''}`}>{isUploadingChat ? <Loader2 className="animate-spin text-stone-500" size={20} /> : <Paperclip size={20} className="text-stone-500" />}<input type="file" className="hidden" accept="image/*" onChange={handleChatImageUpload} disabled={isUploadingChat} /></label><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={t.typeMessage || "Ketik pesan..."} className="flex-1 p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20 text-sm font-medium transition-all" /><button onClick={handleSendMessage} className="p-4 bg-berry-rich text-white rounded-2xl hover:bg-berry-dark transition-colors shadow-lg hover:shadow-berry-rich/30"><Send size={20} /></button></div></div></>) : (<div className="flex-1 flex items-center justify-center flex-col text-stone-300"><div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6"><MessageSquare size={32} className="opacity-50" /></div><p className="font-serif text-lg">{t.selectConversation}</p></div>)}</div></div>)}
+          {activeTab === 'chat' && (<div className="grid md:grid-cols-3 h-[650px] bg-white rounded-[2.5rem] shadow-xl border border-stone-100 overflow-hidden animate-fade-in-up"><div className="border-r border-stone-100 bg-stone-50/50 flex flex-col h-full overflow-hidden"><div className="p-6 border-b border-stone-100"><h3 className="font-serif font-bold text-berry-rich text-xl">{t.consultations}</h3></div><div className="flex-1 overflow-y-auto p-3">{activeConversations.map(convo => (<div key={convo.id} onClick={() => handleChatSelect(convo.id, convo.participantName)} className={`p-4 mb-2 rounded-2xl cursor-pointer transition-all ${activeChatId === convo.id ? 'bg-white shadow-md border border-stone-100' : 'hover:bg-white/50 hover:shadow-sm'}`}><div className="flex justify-between mb-1"><span className={`font-bold text-sm ${activeChatId === convo.id ? 'text-berry-rich' : 'text-stone-700'}`}>{convo.participantName}</span></div><p className="text-xs text-stone-500 truncate font-medium">Klik untuk chat</p></div>))}{activeConversations.length === 0 && (<p className="text-center p-4 text-stone-400 text-sm">Tidak ada chat aktif.</p>)}</div></div><div className="md:col-span-2 flex flex-col bg-white h-full overflow-hidden">{activeChatId ? (<><div className="p-6 border-b border-stone-100 bg-white flex items-center justify-between"><h3 className="font-serif font-bold text-berry-rich text-xl">Chat</h3></div><div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FDFBF7]">{messages.map((msg) => (<div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[75%] p-4 rounded-2xl shadow-sm relative group transition-transform hover:scale-[1.01] ${msg.isMe ? 'bg-berry-rich text-white rounded-tr-none shadow-berry-rich/20' : 'bg-white text-stone-800 rounded-tl-none border border-stone-100'}`}>{msg.attachmentUrl && (<div className="mb-3 rounded-xl overflow-hidden border border-white/20"><img src={msg.attachmentUrl} alt="Attached" className="w-full h-auto max-h-48 object-cover" /></div>)}<p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.text}</p><span className={`text-[10px] block text-right mt-1.5 opacity-70 font-medium ${msg.isMe ? 'text-pink-100' : 'text-stone-400'}`}>{msg.timestamp?.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div></div>))}</div><div className="p-6 border-t border-stone-100 bg-white"><div className="flex gap-3"><label className={`p-4 bg-stone-50 border border-stone-200 rounded-2xl cursor-pointer hover:bg-stone-100 transition-colors flex items-center justify-center ${isUploadingChat ? 'opacity-50 pointer-events-none' : ''}`}>{isUploadingChat ? <Loader2 className="animate-spin text-stone-500" size={20} /> : <Paperclip size={20} className="text-stone-500" />}<input type="file" className="hidden" accept="image/*" onChange={handleChatImageUpload} disabled={isUploadingChat} /></label><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={t.typeMessage || "Ketik pesan..."} className="flex-1 p-4 bg-stone-50 border border-stone-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-berry-rich/20 text-sm font-medium transition-all" /><button onClick={handleSendMessage} className="p-4 bg-berry-rich text-white rounded-2xl hover:bg-berry-dark transition-colors shadow-lg hover:shadow-berry-rich/30"><Send size={20} /></button></div></div></>) : (<div className="flex-1 flex items-center justify-center flex-col text-stone-300"><div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6"><MessageSquare size={32} className="opacity-50" /></div><p className="font-serif text-lg">{t.selectConversation}</p></div>)}</div></div>)}
           {activeTab === 'profile' && (
              <div className="space-y-8 animate-fade-in-up">
               <h2 className="text-4xl font-serif font-bold mb-8 text-berry-rich">{t.profile}</h2>
